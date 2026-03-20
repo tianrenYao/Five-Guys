@@ -1,0 +1,91 @@
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify
+from werkzeug.security import check_password_hash
+from backend.utils.db import query_db, execute_db
+from backend.utils.auth_helper import login_required
+
+auth_bp = Blueprint('auth', __name__)
+
+
+@auth_bp.route('/login', methods=['GET'])
+def login_page():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard.dashboard_page'))
+    return render_template('login.html')
+
+
+@auth_bp.route('/api/login', methods=['POST'])
+def login_api():
+    data = request.get_json() if request.is_json else request.form
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password are required'}), 400
+
+    user = query_db(
+        'SELECT id, company_id, username, password, display_name, role, is_active '
+        'FROM `user` WHERE username = %s',
+        (username,), one=True
+    )
+
+    if not user:
+        return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+
+    if not user['is_active']:
+        return jsonify({'success': False, 'message': 'Account is disabled'}), 403
+
+    if not check_password_hash(user['password'], password):
+        return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+
+    # Set session
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    session['display_name'] = user['display_name'] or user['username']
+    session['role'] = user['role']
+    session['company_id'] = user['company_id']
+
+    # Update last_login
+    execute_db('UPDATE `user` SET last_login = NOW() WHERE id = %s', (user['id'],))
+
+    # Log the login action
+    execute_db(
+        'INSERT INTO audit_log (user_id, action, detail, ip_address) VALUES (%s, %s, %s, %s)',
+        (user['id'], 'LOGIN', f'User {username} logged in', request.remote_addr)
+    )
+
+    return jsonify({
+        'success': True,
+        'message': 'Login successful',
+        'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'display_name': user['display_name'],
+            'role': user['role']
+        }
+    })
+
+
+@auth_bp.route('/logout')
+def logout():
+    user_id = session.get('user_id')
+    if user_id:
+        execute_db(
+            'INSERT INTO audit_log (user_id, action, detail, ip_address) VALUES (%s, %s, %s, %s)',
+            (user_id, 'LOGOUT', 'User logged out', request.remote_addr)
+        )
+    session.clear()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('auth.login_page'))
+
+
+@auth_bp.route('/api/me')
+@login_required
+def current_user():
+    user = query_db(
+        'SELECT u.id, u.username, u.display_name, u.email, u.role, '
+        'c.name AS company_name '
+        'FROM `user` u LEFT JOIN company c ON c.id = u.company_id '
+        'WHERE u.id = %s',
+        (session['user_id'],), one=True
+    )
+    return jsonify({'success': True, 'user': user})

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Reports - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-file-earmark-text me-1"></i> Sustainability Reports{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Generate Report Form -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i> Generate Report</h6>
+            </div>
+            <div class="card-body">
+                <form id="reportForm">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Report Title</label>
+                        <input type="text" class="form-control" id="title" required
+                               placeholder="e.g. Q1 2026 Sustainability Report">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report_type" class="form-label">Report Type</label>
+                        <select class="form-select" id="report_type">
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="annual">Annual</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="date_from" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="date_to" required>
+                    </div>
+                    <div id="reportAlert" class="alert d-none mb-3"></div>
+                    <button type="submit" class="btn btn-success w-100" id="generateBtn">
+                        <i class="bi bi-file-earmark-plus me-1"></i>Generate Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports List -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-collection me-1"></i> Generated Reports</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Period</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsBody">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Preview -->
+        <div class="card border-0 shadow-sm mt-4 d-none" id="previewCard">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-eye me-1"></i> Report Preview</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('previewCard').classList.add('d-none')">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <pre id="reportContent" class="bg-light p-3 rounded" style="white-space:pre-wrap; font-size:0.9rem;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/report.js') }}"></script>
+{% endblock %}

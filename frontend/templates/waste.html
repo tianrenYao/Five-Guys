@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Waste Management - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-recycle me-1"></i> Waste Management{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Add Record Form -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i> Add Waste Record</h6>
+            </div>
+            <div class="card-body">
+                <form id="wasteForm">
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label">Waste Category</label>
+                        <select class="form-select" id="category_id" required>
+                            <option value="">Select category...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="weight_kg" class="form-label">Weight (kg)</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="weight_kg"
+                                   step="0.01" min="0.01" required placeholder="e.g. 25.5">
+                            <span class="input-group-text">kg</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="record_date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="record_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="note" class="form-label">Note (optional)</label>
+                        <input type="text" class="form-control" id="note" placeholder="Optional note">
+                    </div>
+                    <div id="wasteAlert" class="alert d-none mb-3"></div>
+                    <button type="submit" class="btn btn-success w-100" id="submitBtn">
+                        <i class="bi bi-plus-lg me-1"></i>Add Record
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-1"></i> Monthly Stats</h6>
+            </div>
+            <div class="card-body">
+                <div id="chartWasteStats" style="height: 250px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-table me-1"></i> Waste Records</h6>
+                <div class="d-flex gap-2">
+                    <input type="date" class="form-control form-control-sm" id="filterFrom" style="width:140px;">
+                    <input type="date" class="form-control form-control-sm" id="filterTo" style="width:140px;">
+                    <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Weight (kg)</th>
+                                <th>Recyclable</th>
+                                <th>By</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsBody">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/waste.js') }}"></script>
+{% endblock %}
