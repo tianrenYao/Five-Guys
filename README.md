@@ -77,7 +77,7 @@ python3 backend/init_db.py
 python3 backend/app.py
 ```
 
-Visit `http://localhost:5000` in your browser.
+Visit `http://localhost:5001` in your browser (port 5000 is often occupied by AirPlay on macOS).
 
 ### Test Accounts
 

@@ -28,12 +28,16 @@ def create_app():
     from backend.routes.carbon import carbon_bp
     from backend.routes.waste import waste_bp
     from backend.routes.report import report_bp
+    from backend.routes.alert import alert_bp
+    from backend.routes.ocr import ocr_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(carbon_bp)
     app.register_blueprint(waste_bp)
     app.register_blueprint(report_bp)
+    app.register_blueprint(alert_bp)
+    app.register_blueprint(ocr_bp)
 
     # Root redirect
     @app.route('/')

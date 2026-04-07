@@ -1,6 +1,7 @@
 from flask import Blueprint, request, session, render_template, jsonify
 from backend.utils.db import query_db, execute_db, insert_db
-from backend.utils.auth_helper import login_required
+from backend.utils.auth_helper import login_required, get_accessible_store_ids
+from backend.utils.alert_checker import check_alerts_for_store
 
 carbon_bp = Blueprint('carbon', __name__)
 
@@ -25,23 +26,33 @@ def get_factors():
 @carbon_bp.route('/api/carbon/list')
 @login_required
 def carbon_list():
-    """Get carbon records for the current company, with optional date filter."""
-    company_id = session['company_id']
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
+    """Get carbon records for accessible stores, with optional date/store filter."""
+    store_ids = get_accessible_store_ids()
+    if not store_ids:
+        return jsonify({'success': True, 'data': []})
 
+    date_from   = request.args.get('date_from', '')
+    date_to     = request.args.get('date_to', '')
+    filter_store = request.args.get('store_id', '')
+
+    placeholders = ','.join(['%s'] * len(store_ids))
     sql = (
         'SELECT cr.id, cr.category, cr.activity_value, cr.total_carbon, '
-        'cr.record_date, cr.note, cr.created_at, '
+        'cr.record_date, cr.note, cr.created_at, cr.attachment_url, '
         'ef.sub_type, ef.unit, ef.factor, '
-        'u.display_name AS recorded_by '
+        'u.display_name AS recorded_by, '
+        's.name AS store_name '
         'FROM carbon_record cr '
         'LEFT JOIN emission_factor ef ON ef.id = cr.factor_id '
         'LEFT JOIN `user` u ON u.id = cr.user_id '
-        'WHERE cr.company_id = %s '
+        'LEFT JOIN store s ON s.id = cr.store_id '
+        f'WHERE cr.store_id IN ({placeholders}) '
     )
-    params = [company_id]
+    params = list(store_ids)
 
+    if filter_store and int(filter_store) in store_ids:
+        sql += 'AND cr.store_id = %s '
+        params.append(int(filter_store))
     if date_from:
         sql += 'AND cr.record_date >= %s '
         params.append(date_from)
@@ -68,10 +79,22 @@ def carbon_add():
     if not data:
         return jsonify({'success': False, 'message': 'Invalid request data'}), 400
 
-    factor_id = data.get('factor_id')
+    factor_id      = data.get('factor_id')
     activity_value = data.get('activity_value')
-    record_date = data.get('record_date')
-    note = data.get('note', '')
+    record_date    = data.get('record_date')
+    note           = data.get('note', '')
+
+    store_ids = get_accessible_store_ids()
+    role = session.get('role')
+    if role == 'store_staff':
+        store_id = session.get('store_id')
+    else:
+        store_id = data.get('store_id')
+
+    if not store_id:
+        return jsonify({'success': False, 'message': 'store_id is required'}), 400
+    if store_id not in store_ids:
+        return jsonify({'success': False, 'message': 'Access to this store is not permitted'}), 403
 
     if not all([factor_id, activity_value, record_date]):
         return jsonify({'success': False, 'message': 'factor_id, activity_value, and record_date are required'}), 400
@@ -92,9 +115,9 @@ def carbon_add():
     total_carbon = round(activity_value * float(factor['factor']), 4)
 
     record_id = insert_db(
-        'INSERT INTO carbon_record (company_id, user_id, factor_id, category, activity_value, total_carbon, record_date, note) '
-        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-        (session['company_id'], session['user_id'], factor_id,
+        'INSERT INTO carbon_record (company_id, store_id, user_id, factor_id, category, activity_value, total_carbon, record_date, note) '
+        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+        (session['company_id'], store_id, session['user_id'], factor_id,
          factor['category'], activity_value, total_carbon, record_date, note)
     )
 
@@ -107,6 +130,8 @@ def carbon_add():
          request.remote_addr)
     )
 
+    check_alerts_for_store(session['company_id'], store_id)
+
     return jsonify({
         'success': True,
         'message': 'Carbon record added successfully',
@@ -118,9 +143,11 @@ def carbon_add():
 @login_required
 def carbon_delete(record_id):
     """Delete a carbon emission record."""
+    store_ids = get_accessible_store_ids()
+    placeholders = ','.join(['%s'] * len(store_ids)) if store_ids else '0'
     record = query_db(
-        'SELECT id FROM carbon_record WHERE id = %s AND company_id = %s',
-        (record_id, session['company_id']), one=True
+        f'SELECT id FROM carbon_record WHERE id = %s AND store_id IN ({placeholders})',
+        [record_id] + list(store_ids), one=True
     )
     if not record:
         return jsonify({'success': False, 'message': 'Record not found'}), 404

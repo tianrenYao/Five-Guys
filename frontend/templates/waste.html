@@ -12,6 +12,13 @@
             </div>
             <div class="card-body">
                 <form id="wasteForm">
+                    <!-- store selector: shown only for hq_manager/region_manager via JS -->
+                    <div class="mb-3 d-none" id="storeSelectRow">
+                        <label for="store_id" class="form-label">Store</label>
+                        <select class="form-select" id="store_id">
+                            <option value="">Select store...</option>
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label for="category_id" class="form-label">Waste Category</label>
                         <select class="form-select" id="category_id" required>
@@ -19,12 +26,35 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="weight_kg" class="form-label">Weight (kg)</label>
-                        <div class="input-group">
+                        <label for="source_type" class="form-label">Source Type</label>
+                        <select class="form-select" id="source_type">
+                            <option value="packaging">Packaging</option>
+                            <option value="food_residue">Food Residue</option>
+                            <option value="hazardous">Hazardous</option>
+                            <option value="other" selected>Other</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label for="weight_kg" class="form-label">Total Weight (kg)</label>
                             <input type="number" class="form-control" id="weight_kg"
                                    step="0.01" min="0.01" required placeholder="e.g. 25.5">
-                            <span class="input-group-text">kg</span>
                         </div>
+                        <div class="col">
+                            <label for="recycled_kg" class="form-label">Recycled (kg)</label>
+                            <input type="number" class="form-control" id="recycled_kg"
+                                   step="0.01" min="0" value="0" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="disposal_method" class="form-label">Disposal Method</label>
+                        <select class="form-select" id="disposal_method">
+                            <option value="recycling">Recycling</option>
+                            <option value="composting">Composting</option>
+                            <option value="landfill" selected>Landfill</option>
+                            <option value="incineration">Incineration</option>
+                            <option value="other">Other</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="record_date" class="form-label">Date</label>
@@ -56,14 +86,21 @@
     <!-- Records Table -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-table me-1"></i> Waste Records</h6>
-                <div class="d-flex gap-2">
-                    <input type="date" class="form-control form-control-sm" id="filterFrom" style="width:140px;">
-                    <input type="date" class="form-control form-control-sm" id="filterTo" style="width:140px;">
-                    <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
-                        <i class="bi bi-funnel"></i> Filter
-                    </button>
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <h6 class="mb-0"><i class="bi bi-table me-1"></i> Waste Records</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <div class="d-none" id="filterStoreWrapper">
+                            <select class="form-select form-select-sm" id="filterStore" style="width:160px;" onchange="loadRecords()">
+                                <option value="">All stores</option>
+                            </select>
+                        </div>
+                        <input type="date" class="form-control form-control-sm" id="filterFrom" style="width:130px;">
+                        <input type="date" class="form-control form-control-sm" id="filterTo" style="width:130px;">
+                        <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -72,9 +109,12 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Date</th>
+                                <th id="thStore" class="d-none">Store</th>
                                 <th>Category</th>
+                                <th>Source</th>
                                 <th>Weight (kg)</th>
-                                <th>Recyclable</th>
+                                <th>Recycled (kg)</th>
+                                <th>Disposal</th>
                                 <th>By</th>
                                 <th></th>
                             </tr>

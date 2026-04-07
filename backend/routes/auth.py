@@ -23,7 +23,7 @@ def login_api():
         return jsonify({'success': False, 'message': 'Username and password are required'}), 400
 
     user = query_db(
-        'SELECT id, company_id, username, password, display_name, role, is_active '
+        'SELECT id, company_id, region_id, store_id, username, password, display_name, role, is_active '
         'FROM `user` WHERE username = %s',
         (username,), one=True
     )
@@ -38,11 +38,13 @@ def login_api():
         return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
 
     # Set session
-    session['user_id'] = user['id']
-    session['username'] = user['username']
+    session['user_id']    = user['id']
+    session['username']   = user['username']
     session['display_name'] = user['display_name'] or user['username']
-    session['role'] = user['role']
+    session['role']       = user['role']
     session['company_id'] = user['company_id']
+    session['region_id']  = user['region_id']
+    session['store_id']   = user['store_id']
 
     # Update last_login
     execute_db('UPDATE `user` SET last_login = NOW() WHERE id = %s', (user['id'],))
@@ -83,8 +85,14 @@ def logout():
 def current_user():
     user = query_db(
         'SELECT u.id, u.username, u.display_name, u.email, u.role, '
-        'c.name AS company_name '
-        'FROM `user` u LEFT JOIN company c ON c.id = u.company_id '
+        'u.region_id, u.store_id, '
+        'c.name AS company_name, '
+        'r.name AS region_name, '
+        's.name AS store_name '
+        'FROM `user` u '
+        'LEFT JOIN company c ON c.id = u.company_id '
+        'LEFT JOIN region r  ON r.id = u.region_id '
+        'LEFT JOIN store s   ON s.id = u.store_id '
         'WHERE u.id = %s',
         (session['user_id'],), one=True
     )

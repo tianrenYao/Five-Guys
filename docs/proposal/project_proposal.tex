@@ -1,0 +1,157 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=0.75in]{geometry}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.1}
+
+\newcommand{\placeholder}[1]{\fbox{\parbox{0.95\linewidth}{#1}}}
+\newcommand{\ganttcell}{\rule{0.9em}{0.55ex}}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{Project Proposal}}\\
+\vspace{0.25em}
+{\large \textbf{Business Sustainability Management Platform}}\\
+\vspace{0.35em}
+{\small\itshape A proposal for transparent, responsible sustainability tracking and reporting in regional coffee-shop operations.}
+\end{center}
+
+\vspace{0.35em}
+\hrule
+\vspace{0.5em}
+\small
+\textbf{Prepared by:} Group 9 -- Five Guys\\
+\textbf{Client scenario:} A Starbucks-style regional coffee-shop chain\\
+\textbf{Proposal focus:} A practical web-based platform for store-level sustainability management, transparent reporting, and remote evaluation
+
+\vspace{0.5em}
+\hrule
+\vspace{0.6em}
+
+\section*{Proposal Overview}
+This proposal outlines a web-based Business Sustainability Management Platform for a Starbucks-style regional coffee-shop chain. The project addresses the client's difficulty in recording and comparing store-level sustainability data across multiple branches, particularly for carbon emissions, waste, and sustainability reporting. The proposed system will replace fragmented spreadsheets with a browser-based workflow that supports more transparent records, clearer managerial oversight, downloadable PDF reports, and remote evaluation on the university virtual machine. By combining practical deployment, familiar technologies, and a business ethics focus on transparency and accountability, the proposal offers a realistic and client-focused solution for semester delivery.
+
+\section*{1. Client Need and Proposed Solution}
+In the proposed client scenario, a Starbucks-style regional coffee-shop chain wants to manage sustainability more responsibly across multiple stores, but its day-to-day recording practices remain inconsistent from branch to branch. Management therefore lacks a clear and comparable view of emissions, waste, and reporting performance at store level. The result is an operational gap between sustainability intentions and the practical ability to monitor them consistently.
+
+\textbf{Key operational challenges include:}
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=2pt]
+    \item spreadsheet-based recording of electricity use, transport-related emissions, and waste data that is error-prone and difficult to audit;
+    \item weak visibility of trends and branch-to-branch comparisons, which limits informed management decisions;
+    \item limited ability to produce structured sustainability reports aligned with the United Nations Sustainable Development Goals (SDGs);
+    \item an ethical risk that sustainability claims may be communicated without sufficiently reliable supporting records.
+\end{itemize}
+
+The proposed response is a web-based Business Sustainability Management Platform tailored to this coffee-shop context. Rather than copying a single reference software type, the system brings together store-level sustainability reporting, carbon tracking, waste management, dashboard review, and downloadable PDF reporting within one browser-based workflow. By replacing fragmented spreadsheets with structured and auditable records, the platform supports more transparent decision-making and reduces the risk of misleading sustainability claims. The system will be deployed on the university-provided virtual machine and tested remotely from Ireland through a straightforward browser workflow supported by pre-configured customer and employee accounts.
+
+\section*{2. Project Scope and Delivery Approach}
+The project will provide the following deliverables:
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=2pt]
+    \item A functional web application for carbon tracking, waste management, dashboard analytics, and report generation.
+    \item A MySQL database with structured schemas, views, and supporting database design documentation.
+    \item A Git-based source code repository with version history and collaborative branch management.
+    \item A user manual, a testing report, and a deployment guide for local and remote use.
+\end{itemize}
+
+The platform will primarily be used by the operations manager, store managers, and designated employees responsible for entering store-level sustainability data. Employees will record routine carbon and waste figures, store managers will review record completeness, and senior management will use dashboards and generated reports to compare branches, identify improvement opportunities, and support more responsible environmental decision-making.
+
+Technically, the platform will be built with a Flask backend, MySQL data storage, Jinja templates, Bootstrap 5, JavaScript, ECharts 5, and ReportLab for PDF export. This combination supports store-level sustainability reporting, carbon tracking, packaging and organic waste management, and dashboard-driven review within one browser-based workflow for regional coffee-shop operations.
+
+The project intentionally uses technologies that are already familiar to the team, which makes the development approach realistic for the semester and supports reliable implementation, secure storage, and clear role-based access. It also keeps the solution lightweight and practical: store managers and employees can access the system through a browser, while remote evaluation from Ireland is supported through pre-provided customer and employee accounts. The proposed scope remains focused on store-level sustainability operations and reporting rather than wider enterprise resource planning or global supply-chain analytics, which keeps the proposal ambitious but feasible.
+
+\textbf{Why this proposal is feasible.} The team is well placed to deliver this project because it aligns with technical areas already studied and practised during the degree programme, including web development, database design, networking fundamentals, and collaborative software engineering. The implementation will primarily build on tools and workflows that are already understood by the team, while still leaving room to evaluate and learn additional technologies where they are genuinely useful to the final system. Combined with defined work packages, Git-based collaboration, and a remote deployment plan for browser-based testing, this makes the proposal realistic, adaptable, and credible within the semester timeline.
+
+\section*{3. Expected Outcomes and Software Attributes}
+The proposal uses SMART success criteria to define measurable outcomes:
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item All 22 planned RESTful API endpoints will be implemented and integration-tested by Week 9.
+    \item Five core user-facing pages will be completed with responsive layouts and chart visualizations by Week 12.
+    \item The platform will be remotely accessible on the university virtual machine from Ireland by Week 16, with pre-configured customer and employee accounts and a straightforward browser-based testing process.
+    \item Session-based authentication, parameterized SQL queries, and hashed passwords will be applied to protect data and user access.
+    \item The report module will support monthly, quarterly, annual, and custom reporting with downloadable PDF export.
+\end{enumerate}
+
+The software will be designed for usability, security, maintainability, reliability, and efficiency. Form-based data entry and dashboard navigation will support non-specialist business users. Session-based authentication and parameterized SQL queries will protect user and operational data. Modular Flask blueprints and structured database design will support maintainability. Reliable record-keeping, auditable reporting, and transparent sustainability data handling also contribute to the business ethics dimension of the proposal by encouraging responsible environmental communication rather than superficial green claims.
+
+\section*{4. Delivery Plan and Timeline}
+The team will adopt an incremental development process with six work packages. Each package has a designated manager responsible for coordination, quality, and deadlines. Progress will be tracked through GitHub branch management and weekly team meetings so that requirements, implementation, testing, deployment, and documentation can be delivered within the semester in a realistic sequence. Planned checkpoints with the teaching team will be aligned to major milestones so that feedback can be incorporated before the next phase begins.
+
+\begin{tabularx}{\linewidth}{@{}p{0.11\linewidth}p{0.34\linewidth}p{0.18\linewidth}X@{}}
+\toprule
+\textbf{WP} & \textbf{Task} & \textbf{Schedule} & \textbf{Manager} \\
+\midrule
+WP1 & Requirements and Design & W1--W5 & You Haoyang \\
+WP2 & Backend Development & W4--W9 & Liu Haopu \\
+WP3 & Frontend Framework & W6--W10 & Li Sihang \\
+WP4 & Frontend Modules & W8--W12 & Li Sihang \\
+WP5 & Integration and Testing & W12--W16 & Lu Yu'an \\
+WP6 & Documentation and Delivery & W15--W18 & Liu Haopu \\
+\bottomrule
+\end{tabularx}
+
+Key milestones are M1 in Week 5 for design finalization, M2 and M3 in Week 9 for backend completion and the mid-term review, M4 in Week 12 for frontend completion, M5 in Week 16 for remote deployment readiness, and M6 in Week 18 for final delivery and presentation. A visual Gantt chart and a fuller work package appendix are attached after the main body, with room for review and coordination checkpoints.
+
+\section*{5. Resource Requirements}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{0.18\linewidth}X@{}}
+Team & Requirements analyst, technical lead and backend developer, frontend lead, QA and deployment lead, and repository manager. \\
+Technology & Python 3.10+, Flask 3.x, MySQL 8.0+, Bootstrap 5, ECharts 5, ReportLab, Git/GitHub, and the university-provided virtual machine. \\
+Cost & The solution uses open-source tools and the university hosting environment, so no additional budget is required. \\
+\end{tabularx}
+
+\section*{6. Conclusion and Expected Impact}
+This proposal recommends a practical and semester-feasible sustainability management platform for a Starbucks-style regional coffee-shop chain. By replacing fragmented spreadsheets with structured records, dashboards, and downloadable reports, the system is expected to improve store-level visibility, support more consistent environmental decision-making, and strengthen the transparency of sustainability communication. With a defined delivery plan, realistic technical scope, and support for remote browser-based evaluation, the project offers a credible path to a useful client-focused system within the module timeframe.
+
+\clearpage
+\appendix
+
+\section*{Appendix A: Gantt Chart}
+\scriptsize
+\begin{center}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}p{0.19\linewidth}*{18}{>{\centering\arraybackslash}p{0.031\linewidth}}@{}}
+\toprule
+\textbf{WP / Week} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{11} & \textbf{12} & \textbf{13} & \textbf{14} & \textbf{15} & \textbf{16} & \textbf{17} & \textbf{18} \\
+\midrule
+WP1 Requirements and Design & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell &  &  &  &  &  &  &  &  &  &  &  &  &  \\
+WP2 Backend Development &  &  &  & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell &  &  &  &  &  &  &  &  &  \\
+WP3 Frontend Framework &  &  &  &  &  & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell &  &  &  &  &  &  &  &  \\
+WP4 Frontend Modules &  &  &  &  &  &  &  & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell &  &  &  &  &  &  \\
+WP5 Integration and Testing &  &  &  &  &  &  &  &  &  &  &  & \ganttcell & \ganttcell & \ganttcell & \ganttcell & \ganttcell &  &  \\
+WP6 Documentation and Delivery &  &  &  &  &  &  &  &  &  &  &  &  &  &  & \ganttcell & \ganttcell & \ganttcell & \ganttcell \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+\normalsize
+
+\textit{Milestone checkpoints:} M1 requirements baseline (W5), M2 backend foundation (W9), M3 frontend baseline (W10), M4 feature completion (W12), M5 integration testing on VM (W16), and M6 final documentation and delivery (W18).
+
+\vspace{1em}
+
+\section*{Appendix B: Detailed Work Package Notes}
+\begin{tabularx}{\linewidth}{@{}p{0.11\linewidth}X@{}}
+\toprule
+\textbf{WP} & \textbf{Scope} \\
+\midrule
+WP1 & Problem analysis, proposal writing, software architecture, and design artefacts. \\
+WP2 & Database design, backend APIs, authentication, and business logic. \\
+WP3 & Frontend layout, shared components, and page framework. \\
+WP4 & Carbon tracking, waste management, dashboard, and report interfaces. \\
+WP5 & Integration testing, bug fixing, performance improvements, and deployment. \\
+WP6 & User documentation, delivery preparation, and presentation materials. \\
+\bottomrule
+\end{tabularx}
+
+\end{document}

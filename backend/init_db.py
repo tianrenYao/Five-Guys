@@ -159,8 +159,9 @@ def main():
     init_sample_data(conn)
 
     conn.close()
+    port = os.getenv('FLASK_PORT', '5001')
     print("\nDone! You can now run: python3 backend/app.py")
-    print("Then visit: http://localhost:5000")
+    print(f"Then visit: http://localhost:{port}")
     print("Login with: test_business / 123456")
 
 

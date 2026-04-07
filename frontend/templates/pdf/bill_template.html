@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #222; background: #fff; }
+  .page { width: 595px; padding: 40px; }
+
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+  .utility-name { font-size: 18pt; font-weight: 700; color: #005bac; }
+  .utility-sub  { font-size: 9pt; color: #666; margin-top: 3px; }
+  .invoice-box  { text-align: right; }
+  .invoice-box .label { font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .invoice-box .value { font-size: 11pt; font-weight: 600; }
+
+  hr { border: none; border-top: 2px solid #005bac; margin: 12px 0; }
+
+  .two-col { display: flex; gap: 32px; margin-bottom: 20px; }
+  .col { flex: 1; }
+  .field-label { font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .field-value { font-size: 10.5pt; font-weight: 600; }
+
+  .usage-box {
+    border: 2px solid #005bac; border-radius: 6px;
+    padding: 16px 20px; margin: 20px 0; display: flex;
+    justify-content: space-around; text-align: center;
+  }
+  .usage-item .big { font-size: 22pt; font-weight: 700; color: #005bac; }
+  .usage-item .unit { font-size: 9pt; color: #555; margin-top: 2px; }
+  .usage-item .lbl  { font-size: 8pt; color: #888; text-transform: uppercase; margin-top: 6px; }
+
+  .charges-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
+  .charges-table th { background: #f0f5ff; padding: 7px 10px; text-align: left; border-bottom: 2px solid #c8d8f8; }
+  .charges-table td { padding: 6px 10px; border-bottom: 1px solid #eee; }
+  .charges-table .total-row td { font-weight: 700; background: #f0f5ff; }
+
+  .footer { margin-top: 24px; font-size: 8.5pt; color: #aaa; text-align: center; }
+  .barcode-row { text-align: center; margin-top: 16px; letter-spacing: 4px; font-family: monospace; font-size: 13pt; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="utility-name">CityGrid Energy</div>
+      <div class="utility-sub">123 Power Street, Dublin, D01 A001<br>Tel: +353 1 555 0100 &nbsp;|&nbsp; enquiries@citygrid.ie</div>
+    </div>
+    <div class="invoice-box">
+      <div class="label">Invoice No.</div>
+      <div class="value">{{ invoice_no }}</div>
+      <div class="label" style="margin-top:8px;">Invoice Date</div>
+      <div class="value">{{ invoice_date }}</div>
+    </div>
+  </div>
+  <hr>
+
+  <!-- Customer & Period -->
+  <div class="two-col">
+    <div class="col">
+      <div class="field-label">Bill To</div>
+      <div class="field-value">{{ customer_name }}</div>
+      <div style="font-size:10pt; color:#444; margin-top:3px;">{{ customer_address }}</div>
+      <div style="font-size:10pt; color:#444;">Account No: {{ account_no }}</div>
+    </div>
+    <div class="col">
+      <div class="field-label">Billing Period</div>
+      <div class="field-value">{{ period_from }} – {{ period_to }}</div>
+      <div class="field-label" style="margin-top:10px;">Meter Number</div>
+      <div class="field-value">{{ meter_no }}</div>
+    </div>
+  </div>
+
+  <!-- Usage Highlights -->
+  <div class="usage-box">
+    <div class="usage-item">
+      <div class="big">{{ meter_reading_prev }}</div>
+      <div class="unit">kWh</div>
+      <div class="lbl">Previous Reading</div>
+    </div>
+    <div class="usage-item">
+      <div class="big">{{ meter_reading_curr }}</div>
+      <div class="unit">kWh</div>
+      <div class="lbl">Current Reading</div>
+    </div>
+    <div class="usage-item" style="border-left:2px solid #c8d8f8; padding-left:24px;">
+      <div class="big" style="color:#e94560;">{{ consumption_kwh }}</div>
+      <div class="unit">kWh</div>
+      <div class="lbl">Consumption</div>
+    </div>
+  </div>
+
+  <!-- Charges Breakdown -->
+  <table class="charges-table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>Unit Rate</th>
+        <th>Units</th>
+        <th>Amount (€)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Electricity – Day Rate</td>
+        <td>{{ unit_rate }} c/kWh</td>
+        <td>{{ consumption_kwh }} kWh</td>
+        <td>{{ energy_charge }}</td>
+      </tr>
+      <tr>
+        <td>Standing Charge</td>
+        <td>—</td>
+        <td>{{ billing_days }} days</td>
+        <td>{{ standing_charge }}</td>
+      </tr>
+      <tr>
+        <td>VAT (13.5%)</td>
+        <td>—</td>
+        <td>—</td>
+        <td>{{ vat_amount }}</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="3">Total Amount Due</td>
+        <td>€ {{ total_due }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Payment Due -->
+  <div style="background:#fffde7; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; font-size:10pt;">
+    <strong>Payment Due By:</strong> {{ payment_due_date }}
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <strong>IBAN:</strong> IE64 BOFI 9000 0112 3456 78
+  </div>
+
+  <!-- Barcode (decorative) -->
+  <div class="barcode-row">|||||||  {{ invoice_no }}  |||||||</div>
+
+  <div class="footer">
+    CityGrid Energy Ltd. &nbsp;|&nbsp; Reg. No. 123456 &nbsp;|&nbsp; www.citygrid.ie
+  </div>
+
+</div>
+</body>
+</html>

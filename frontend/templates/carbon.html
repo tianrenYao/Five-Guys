@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Carbon Tracking - Sustainability Platform{% endblock %}
-{% block page_title %}<i class="bi bi-cloud-haze me-1"></i> Carbon Footprint Tracking{% endblock %}
+{% block page_title %}<i class="bi bi-lightning-charge me-1"></i> Carbon Footprint Tracking{% endblock %}
 
 {% block content %}
 <div class="row g-4">
@@ -12,6 +12,13 @@
             </div>
             <div class="card-body">
                 <form id="carbonForm">
+                    <!-- store selector: shown only for hq_manager/region_manager via JS -->
+                    <div class="mb-3 d-none" id="storeSelectRow">
+                        <label for="store_id" class="form-label">Store</label>
+                        <select class="form-select" id="store_id">
+                            <option value="">Select store...</option>
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label for="category" class="form-label">Emission Category</label>
                         <select class="form-select" id="category" required>
@@ -46,6 +53,20 @@
                         <i class="bi bi-plus-lg me-1"></i>Add Record
                     </button>
                 </form>
+
+                <!-- Scan Bill / OCR -->
+                <hr class="my-3">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <label class="btn btn-outline-secondary btn-sm mb-0" for="billFileInput">
+                        <i class="bi bi-upc-scan me-1"></i>Scan Bill
+                    </label>
+                    <input type="file" id="billFileInput" accept="image/*,.pdf" class="d-none"
+                           onchange="scanBill(this)">
+                    <a href="/ocr/demo-bill" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-file-earmark-text me-1"></i>Demo Bill
+                    </a>
+                </div>
+                <div id="ocrStatus" class="text-muted" style="font-size:0.82rem;"></div>
             </div>
         </div>
     </div>
@@ -53,14 +74,22 @@
     <!-- Records Table -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-table me-1"></i> Carbon Records</h6>
-                <div class="d-flex gap-2">
-                    <input type="date" class="form-control form-control-sm" id="filterFrom" style="width:140px;">
-                    <input type="date" class="form-control form-control-sm" id="filterTo" style="width:140px;">
-                    <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
-                        <i class="bi bi-funnel"></i> Filter
-                    </button>
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <h6 class="mb-0"><i class="bi bi-table me-1"></i> Carbon Records</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <!-- store filter: shown only for multi-store users via JS -->
+                        <div class="d-none" id="filterStoreWrapper">
+                            <select class="form-select form-select-sm" id="filterStore" style="width:160px;" onchange="loadRecords()">
+                                <option value="">All stores</option>
+                            </select>
+                        </div>
+                        <input type="date" class="form-control form-control-sm" id="filterFrom" style="width:130px;">
+                        <input type="date" class="form-control form-control-sm" id="filterTo" style="width:130px;">
+                        <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -69,6 +98,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Date</th>
+                                <th id="thStore" class="d-none">Store</th>
                                 <th>Category</th>
                                 <th>Source</th>
                                 <th>Activity</th>

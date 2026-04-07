@@ -3,7 +3,7 @@ import io
 from datetime import datetime
 from flask import Blueprint, request, session, render_template, jsonify, send_file
 from backend.utils.db import query_db, execute_db, insert_db
-from backend.utils.auth_helper import login_required
+from backend.utils.auth_helper import login_required, role_required, get_accessible_store_ids
 
 report_bp = Blueprint('report', __name__)
 
@@ -36,6 +36,7 @@ def report_list():
 
 @report_bp.route('/api/report/generate', methods=['POST'])
 @login_required
+@role_required('hq_manager', 'region_manager', 'admin')
 def report_generate():
     """Generate a sustainability report based on date range."""
     data = request.get_json()
@@ -54,34 +55,42 @@ def report_generate():
         return jsonify({'success': False, 'message': 'Invalid report_type'}), 400
 
     company_id = session['company_id']
+    store_ids  = get_accessible_store_ids()
+
+    if not store_ids:
+        return jsonify({'success': False, 'message': 'No accessible stores found'}), 403
+
+    ph = ','.join(['%s'] * len(store_ids))
+    sid = list(store_ids)
 
     # Gather carbon data
     carbon_data = query_db(
         'SELECT category, SUM(activity_value) AS total_activity, '
         'SUM(total_carbon) AS total_carbon, COUNT(*) AS record_count '
         'FROM carbon_record '
-        'WHERE company_id = %s AND record_date BETWEEN %s AND %s '
+        f'WHERE store_id IN ({ph}) AND record_date BETWEEN %s AND %s '
         'GROUP BY category',
-        (company_id, date_from, date_to)
+        sid + [date_from, date_to]
     )
 
     # Gather waste data
     waste_data = query_db(
-        'SELECT wc.name AS category, SUM(wr.weight_kg) AS total_kg, wc.is_recyclable '
+        'SELECT wc.name AS category, SUM(wr.weight_kg) AS total_kg, '
+        'SUM(wr.recycled_kg) AS recycled_kg '
         'FROM waste_record wr '
         'JOIN waste_category wc ON wc.id = wr.category_id '
-        'WHERE wr.company_id = %s AND wr.record_date BETWEEN %s AND %s '
-        'GROUP BY wc.name, wc.is_recyclable',
-        (company_id, date_from, date_to)
+        f'WHERE wr.store_id IN ({ph}) AND wr.record_date BETWEEN %s AND %s '
+        'GROUP BY wc.name',
+        sid + [date_from, date_to]
     )
 
     # Calculate totals
-    total_carbon = sum(float(r['total_carbon'] or 0) for r in carbon_data)
-    total_waste = sum(float(r['total_kg'] or 0) for r in waste_data)
-    recyclable_waste = sum(float(r['total_kg'] or 0) for r in waste_data if r['is_recyclable'])
-    recovery_rate = round(recyclable_waste / total_waste * 100, 1) if total_waste > 0 else 0
+    total_carbon   = sum(float(r['total_carbon'] or 0) for r in carbon_data)
+    total_waste    = sum(float(r['total_kg']     or 0) for r in waste_data)
+    total_recycled = sum(float(r['recycled_kg']  or 0) for r in waste_data)
+    recovery_rate  = round(total_recycled / total_waste * 100, 1) if total_waste > 0 else 0
 
-    # Build report content
+    # Build report content (kept as summary text for DB storage)
     content = _build_report_content(
         title, date_from, date_to, carbon_data, waste_data,
         total_carbon, total_waste, recovery_rate
@@ -131,7 +140,7 @@ def report_detail(report_id):
 @report_bp.route('/api/report/<int:report_id>/export-pdf')
 @login_required
 def report_export_pdf(report_id):
-    """Export a report as PDF."""
+    """Export a report as PDF using WeasyPrint + Jinja2 HTML template."""
     report = query_db(
         'SELECT * FROM report WHERE id = %s AND company_id = %s',
         (report_id, session['company_id']), one=True
@@ -140,56 +149,99 @@ def report_export_pdf(report_id):
         return jsonify({'success': False, 'message': 'Report not found'}), 404
 
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-        from reportlab.lib.units import cm
-
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4,
-                                topMargin=2*cm, bottomMargin=2*cm,
-                                leftMargin=2*cm, rightMargin=2*cm)
-
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle('ReportTitle', parent=styles['Title'], fontSize=18, spaceAfter=20)
-        body_style = ParagraphStyle('ReportBody', parent=styles['Normal'], fontSize=11, leading=16)
-
-        story = []
-        story.append(Paragraph(report['title'], title_style))
-        story.append(Spacer(1, 12))
-
-        # Convert content line by line
-        for line in (report['content'] or '').split('\n'):
-            if line.strip():
-                story.append(Paragraph(line, body_style))
-                story.append(Spacer(1, 6))
-
-        doc.build(story)
-        buffer.seek(0)
-
-        # Save PDF path
-        reports_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backend', 'reports')
-        os.makedirs(reports_dir, exist_ok=True)
-        pdf_filename = f'report_{report_id}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf'
-        pdf_path = os.path.join(reports_dir, pdf_filename)
-        with open(pdf_path, 'wb') as f:
-            f.write(buffer.getvalue())
-
-        execute_db(
-            'UPDATE report SET pdf_path = %s, status = %s WHERE id = %s',
-            (pdf_path, 'exported', report_id)
-        )
-
-        buffer.seek(0)
-        return send_file(buffer, mimetype='application/pdf',
-                         as_attachment=True, download_name=f'{report["title"]}.pdf')
-
+        from weasyprint import HTML
+        from jinja2 import Environment, FileSystemLoader
     except ImportError:
-        return jsonify({'success': False, 'message': 'ReportLab is not installed. Run: pip install reportlab'}), 500
+        return jsonify({'success': False,
+                        'message': 'WeasyPrint not installed. Run: pip install weasyprint'}), 500
+
+    # Re-query aggregated data for the PDF template
+    company_id = report['company_id']
+    date_from  = str(report['date_from'])
+    date_to    = str(report['date_to'])
+
+    carbon_data = query_db(
+        'SELECT category, SUM(activity_value) AS total_activity, '
+        'SUM(total_carbon) AS total_carbon, COUNT(*) AS record_count '
+        'FROM carbon_record '
+        'WHERE company_id = %s AND record_date BETWEEN %s AND %s '
+        'GROUP BY category',
+        (company_id, date_from, date_to)
+    )
+    waste_data = query_db(
+        'SELECT wc.name AS category, SUM(wr.weight_kg) AS total_kg, '
+        'SUM(wr.recycled_kg) AS recycled_kg '
+        'FROM waste_record wr '
+        'JOIN waste_category wc ON wc.id = wr.category_id '
+        'WHERE wr.company_id = %s AND wr.record_date BETWEEN %s AND %s '
+        'GROUP BY wc.name',
+        (company_id, date_from, date_to)
+    )
+    store_count = query_db(
+        'SELECT COUNT(DISTINCT store_id) AS cnt FROM carbon_record '
+        'WHERE company_id = %s AND record_date BETWEEN %s AND %s',
+        (company_id, date_from, date_to), one=True
+    )
+
+    total_carbon   = sum(float(r['total_carbon'] or 0) for r in carbon_data)
+    total_waste    = sum(float(r['total_kg']     or 0) for r in waste_data)
+    total_recycled = sum(float(r['recycled_kg']  or 0) for r in waste_data)
+    recovery_rate  = round(total_recycled / total_waste * 100, 1) if total_waste > 0 else 0
+
+    # Convert Decimal → float for Jinja2
+    for r in carbon_data:
+        r['total_activity'] = float(r['total_activity'] or 0)
+        r['total_carbon']   = float(r['total_carbon']   or 0)
+    for r in waste_data:
+        r['total_kg']    = float(r['total_kg']    or 0)
+        r['recycled_kg'] = float(r['recycled_kg'] or 0)
+
+    # Render HTML template
+    templates_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'frontend', 'templates', 'pdf'
+    )
+    env = Environment(loader=FileSystemLoader(templates_path))
+    template = env.get_template('report_template.html')
+    html_str = template.render(
+        report=report,
+        carbon_data=carbon_data,
+        waste_data=waste_data,
+        total_carbon=total_carbon,
+        total_waste=total_waste,
+        total_recycled=total_recycled,
+        recovery_rate=recovery_rate,
+        store_count=store_count['cnt'] if store_count else 0,
+        generated_at=datetime.now().strftime('%Y-%m-%d %H:%M')
+    )
+
+    # Convert to PDF
+    pdf_bytes = HTML(string=html_str).write_pdf()
+
+    # Save to disk and update DB
+    reports_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'reports')
+    os.makedirs(reports_dir, exist_ok=True)
+    pdf_filename = f'report_{report_id}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf'
+    pdf_path = os.path.join(reports_dir, pdf_filename)
+    with open(pdf_path, 'wb') as f:
+        f.write(pdf_bytes)
+
+    execute_db(
+        'UPDATE report SET pdf_path = %s, status = %s WHERE id = %s',
+        (pdf_path, 'exported', report_id)
+    )
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'{report["title"]}.pdf'
+    )
 
 
 @report_bp.route('/api/report/<int:report_id>/delete', methods=['DELETE'])
 @login_required
+@role_required('hq_manager', 'admin')
 def report_delete(report_id):
     """Delete a report."""
     record = query_db(

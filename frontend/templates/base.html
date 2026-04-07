@@ -18,8 +18,11 @@
     <div class="d-flex" id="wrapper">
         <!-- Sidebar -->
         <nav id="sidebar" class="bg-dark text-white">
-            <div class="sidebar-header p-3 border-bottom border-secondary">
-                <h5 class="mb-0"><i class="bi bi-globe2"></i> SustainPlatform</h5>
+            <div class="sidebar-header p-3 border-bottom border-secondary d-flex align-items-center gap-2">
+                <img src="{{ url_for('static', filename='img/luckin_logo.png') }}"
+                     alt="Luckin Coffee" height="32"
+                     onerror="this.style.display='none'">
+                <span class="fw-semibold small">ESG Platform</span>
             </div>
             <ul class="nav flex-column p-2">
                 <li class="nav-item">
@@ -31,7 +34,7 @@
                 <li class="nav-item">
                     <a class="nav-link text-white {% if request.path == '/carbon' %}active bg-success bg-opacity-25 rounded{% endif %}"
                        href="/carbon">
-                        <i class="bi bi-cloud-haze me-2"></i>Carbon Tracking
+                        <i class="bi bi-lightning-charge me-2"></i>Carbon Tracking
                     </a>
                 </li>
                 <li class="nav-item">
@@ -46,11 +49,31 @@
                         <i class="bi bi-file-earmark-text me-2"></i>Reports
                     </a>
                 </li>
+                {% if session.get('role') in ('hq_manager', 'region_manager', 'admin') %}
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/alerts' %}active bg-warning bg-opacity-25 rounded{% endif %}"
+                       href="/alerts" id="alertNavLink">
+                        <i class="bi bi-bell me-2"></i>Alerts
+                        <span id="sidebarAlertBadge" class="badge bg-danger ms-1 d-none">0</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
             <div class="mt-auto p-3 border-top border-secondary">
                 <small class="text-muted d-block">Logged in as</small>
-                <span class="text-white">{{ session.get('display_name', session.get('username')) }}</span>
-                <span class="badge bg-info ms-1">{{ session.get('role') }}</span>
+                <span class="text-white fw-semibold">{{ session.get('display_name', session.get('username')) }}</span>
+                {% set role = session.get('role') %}
+                {% if role == 'hq_manager' %}
+                    <span class="badge bg-primary ms-1">HQ Manager</span>
+                {% elif role == 'region_manager' %}
+                    <span class="badge bg-info ms-1">Region Manager</span>
+                {% elif role == 'store_staff' %}
+                    <span class="badge bg-success ms-1">Store Staff</span>
+                {% elif role == 'admin' %}
+                    <span class="badge bg-danger ms-1">Admin</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-1">{{ role }}</span>
+                {% endif %}
                 <a href="/logout" class="btn btn-outline-light btn-sm mt-2 w-100">
                     <i class="bi bi-box-arrow-left me-1"></i>Logout
                 </a>
@@ -60,13 +83,27 @@
         <!-- Main Content -->
         <div id="main-content" class="flex-grow-1">
             <!-- Top Bar -->
-            <nav class="navbar navbar-light bg-white shadow-sm px-4">
+            <nav class="navbar navbar-light bg-white shadow-sm px-4 d-flex justify-content-between">
                 <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle">
                     <i class="bi bi-list"></i>
                 </button>
-                <span class="navbar-text">
+                <span class="navbar-text fw-semibold">
                     {% block page_title %}{% endblock %}
                 </span>
+                <div class="d-flex align-items-center gap-3">
+                    {% if session.get('role') in ('hq_manager', 'region_manager', 'admin') %}
+                    <a href="/alerts" class="btn btn-sm btn-outline-secondary position-relative" title="Alerts">
+                        <i class="bi bi-bell"></i>
+                        <span id="topbarAlertBadge"
+                              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+                            0
+                        </span>
+                    </a>
+                    {% endif %}
+                    <small class="text-muted d-none d-md-block">
+                        {{ session.get('display_name', session.get('username')) }}
+                    </small>
+                </div>
             </nav>
 
             <!-- Flash Messages -->

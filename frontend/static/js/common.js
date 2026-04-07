@@ -73,3 +73,32 @@ function setDefaultDate(inputId) {
         el.value = new Date().toISOString().substring(0, 10);
     }
 }
+
+/**
+ * Load unread alert count and update sidebar + topbar badges.
+ * Silently skips if the badge elements don't exist (store_staff has no badge).
+ */
+async function loadAlertBadge() {
+    const sidebar = document.getElementById('sidebarAlertBadge');
+    const topbar  = document.getElementById('topbarAlertBadge');
+    if (!sidebar && !topbar) return;
+
+    const data = await apiFetch('/api/alert/unread-count');
+    if (!data || !data.success) return;
+
+    const count = data.data.count || 0;
+    [sidebar, topbar].forEach(el => {
+        if (!el) return;
+        el.textContent = count > 99 ? '99+' : count;
+        el.classList.toggle('d-none', count === 0);
+    });
+}
+
+// Poll alert badge every 60 seconds after page load
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('sidebarAlertBadge') ||
+        document.getElementById('topbarAlertBadge')) {
+        loadAlertBadge();
+        setInterval(loadAlertBadge, 60000);
+    }
+});

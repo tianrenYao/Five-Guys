@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 11pt; color: #222; }
+
+  /* Cover header */
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    color: #fff; padding: 36px 40px 28px; margin-bottom: 28px;
+  }
+  .header .logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .header .brand { font-size: 13pt; font-weight: 600; opacity: 0.85; }
+  .header h1 { font-size: 22pt; font-weight: 700; margin-bottom: 6px; }
+  .header .meta { font-size: 9.5pt; opacity: 0.7; }
+
+  /* Body layout */
+  .body { padding: 0 40px 40px; }
+
+  /* Section title */
+  .section-title {
+    font-size: 13pt; font-weight: 700; color: #0f3460;
+    border-left: 4px solid #e94560; padding-left: 10px;
+    margin: 24px 0 12px;
+  }
+
+  /* Summary KPI cards */
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .kpi-card {
+    flex: 1; border: 1px solid #e8e8e8; border-radius: 8px;
+    padding: 14px 16px; text-align: center;
+  }
+  .kpi-card .value { font-size: 18pt; font-weight: 700; color: #0f3460; }
+  .kpi-card .label { font-size: 8.5pt; color: #888; margin-top: 4px; }
+
+  /* Data table */
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  thead th {
+    background: #f0f4ff; color: #0f3460;
+    padding: 8px 10px; text-align: left;
+    border-bottom: 2px solid #c8d8f8;
+  }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #fafbff; }
+
+  /* AI comment box */
+  .ai-box {
+    border: 1px solid #d6e4ff; border-radius: 8px;
+    background: #f0f6ff; padding: 16px 18px; margin-top: 16px;
+  }
+  .ai-box .ai-label {
+    font-size: 9pt; font-weight: 700; color: #3a6bc9;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .ai-box p { font-size: 10.5pt; line-height: 1.6; color: #333; }
+
+  /* SDG row */
+  .sdg-tag {
+    display: inline-block; background: #e8f5e9; color: #2e7d32;
+    border-radius: 4px; padding: 3px 8px; font-size: 9pt;
+    margin: 3px 2px;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 32px; padding-top: 14px;
+    border-top: 1px solid #ddd;
+    font-size: 8.5pt; color: #aaa; text-align: center;
+  }
+
+  /* Alert box for low recycling */
+  .alert-box {
+    border: 1px solid #ffc107; border-radius: 6px;
+    background: #fffde7; padding: 10px 14px; margin: 10px 0;
+    font-size: 9.5pt; color: #7a5c00;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-row">
+    <span class="brand">Luckin Coffee ESG Platform</span>
+  </div>
+  <h1>{{ report.title }}</h1>
+  <p class="meta">
+    Reporting Period: {{ report.date_from }} &ndash; {{ report.date_to }}
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    Generated: {{ generated_at }}
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    Report Type: {{ report.report_type | capitalize }}
+    {% if report.report_scope and report.report_scope != 'company' %}
+    &nbsp;&nbsp;|&nbsp;&nbsp; Scope: {{ report.report_scope | capitalize }}
+    {% endif %}
+  </p>
+</div>
+
+<div class="body">
+
+  <!-- KPI Summary -->
+  <div class="section-title">Executive Summary</div>
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="value">{{ "%.1f"|format(total_carbon) }}</div>
+      <div class="label">Total Carbon Emissions (kgCO₂e)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="value">{{ "%.1f"|format(total_waste) }}</div>
+      <div class="label">Total Waste Generated (kg)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="value">{{ recovery_rate }}%</div>
+      <div class="label">Waste Recovery Rate</div>
+    </div>
+    <div class="kpi-card">
+      <div class="value">{{ store_count }}</div>
+      <div class="label">Stores Covered</div>
+    </div>
+  </div>
+
+  {% if recovery_rate < 30 %}
+  <div class="alert-box">
+    ⚠ Waste recovery rate is below the 30% target. Recommend reviewing disposal contracts
+    and reactivating recycling partnerships at underperforming stores.
+  </div>
+  {% endif %}
+
+  <!-- Carbon Emissions -->
+  <div class="section-title">Carbon Emissions Breakdown</div>
+  {% if carbon_data %}
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Records</th>
+        <th>Total Activity</th>
+        <th>Carbon Emissions (kgCO₂e)</th>
+        <th>Share (%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in carbon_data %}
+      <tr>
+        <td>{{ r.category | capitalize }}</td>
+        <td>{{ r.record_count }}</td>
+        <td>{{ "%.1f"|format(r.total_activity | float) }}</td>
+        <td><strong>{{ "%.2f"|format(r.total_carbon | float) }}</strong></td>
+        <td>
+          {% if total_carbon > 0 %}
+            {{ "%.1f"|format(r.total_carbon | float / total_carbon * 100) }}%
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background:#eef3ff; font-weight:700;">
+        <td colspan="3">Total</td>
+        <td>{{ "%.2f"|format(total_carbon) }}</td>
+        <td>100%</td>
+      </tr>
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#888; font-style:italic;">No carbon emission records in this period.</p>
+  {% endif %}
+
+  <!-- Waste Management -->
+  <div class="section-title">Waste Management Breakdown</div>
+  {% if waste_data %}
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Total Weight (kg)</th>
+        <th>Recycled (kg)</th>
+        <th>Recovery Rate (%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in waste_data %}
+      <tr>
+        <td>{{ r.category }}</td>
+        <td>{{ "%.2f"|format(r.total_kg | float) }}</td>
+        <td>{{ "%.2f"|format(r.recycled_kg | float) }}</td>
+        <td>
+          {% set rate = (r.recycled_kg | float / r.total_kg | float * 100) if r.total_kg | float > 0 else 0 %}
+          {% if rate < 30 %}
+            <span style="color:#c62828; font-weight:700;">{{ "%.1f"|format(rate) }}%</span>
+          {% else %}
+            {{ "%.1f"|format(rate) }}%
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background:#eef3ff; font-weight:700;">
+        <td>Total</td>
+        <td>{{ "%.2f"|format(total_waste) }}</td>
+        <td>{{ "%.2f"|format(total_recycled) }}</td>
+        <td>{{ recovery_rate }}%</td>
+      </tr>
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#888; font-style:italic;">No waste records in this period.</p>
+  {% endif %}
+
+  <!-- AI Evaluation -->
+  <div class="section-title">AI-Generated Evaluation</div>
+  <div class="ai-box">
+    <div class="ai-label">&#129302; Powered by DeepSeek</div>
+    {% if report.ai_comment %}
+    <p>{{ report.ai_comment }}</p>
+    {% else %}
+    <p style="color:#888; font-style:italic;">
+      AI evaluation not yet generated. Use the "Generate AI Comment" button on the
+      report detail page to request an automatic assessment of this reporting period's
+      sustainability performance.
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- SDG Alignment -->
+  <div class="section-title">UN SDG Alignment</div>
+  <p style="margin-bottom:8px; font-size:10pt;">
+    This report contributes evidence towards the following Sustainable Development Goals:
+  </p>
+  <span class="sdg-tag">SDG 9 — Industry &amp; Innovation</span>
+  <span class="sdg-tag">SDG 11 — Sustainable Cities</span>
+  <span class="sdg-tag">SDG 12 — Responsible Consumption</span>
+  <span class="sdg-tag">SDG 13 — Climate Action</span>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  Luckin Coffee ESG Management Platform &nbsp;|&nbsp;
+  Confidential &ndash; For Internal Use Only &nbsp;|&nbsp;
+  {{ generated_at }}
+</div>
+
+</body>
+</html>

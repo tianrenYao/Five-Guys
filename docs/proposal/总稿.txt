@@ -1,0 +1,58 @@
+Part A: ProblemBusinesses, especially small and medium-sized ones, lack a unified, affordable software tool to track carbon emissions, manage waste classification data, and generate compliance-aligned sustainability reports. Currently, most enterprises rely on manual Excel-based record-keeping, which is prone to human error, unable to visualize data trends for actionable insights, and fails to effectively align their sustainability efforts with the UN Sustainable Development Goals (SDGs). Additionally, commercial ESG and sustainability management software is cost-prohibitive for SMEs, leaving them without accessible solutions to monitor, optimize, and report on their environmental impact— a critical need as businesses aim to adopt sustainable operations and meet regulatory and stakeholder demands for transparency.Part B: VisionThis project will deliver a one-stop web-based sustainability management platform that enables businesses to automatically calculate carbon footprints and track waste classification recycling rates through simple, intuitive data entry. The platform will support the automatic generation of monthly, quarterly, and annual sustainability reports with one-click PDF export, streamlining compliance and stakeholder reporting. Hosted on the university-provided virtual machine, the platform will be fully accessible via remote web browsers, allowing assessors in Ireland to test all core functionalities directly and seamlessly using pre-provided test accounts.Part C: BenefitsFirst, the platform drastically reduces manual data statistics time by automating carbon emission calculations through the standard formula of activity value multiplied by emission factor. Second, it enhances data accuracy via MySQL database constraints and built-in standard emission factor libraries, eliminating errors from manual entry and calculation. Third, it integrates ECharts to provide visual data trends through charts (line, pie, bar), making environmental performance insights clear and actionable. Fourth, the system is pre-aligned with UN SDG 9, 11, 12 and 13, enabling businesses to directly map their sustainability efforts to global goals. Fifth, the one-click PDF export function simplifies the creation of formal sustainability reports, supporting enterprises in meeting regulatory compliance and stakeholder reporting requirements efficiently.
+
+
+
+
+Deliverables
+1.Web Application — A fully functional enterprise sustainable development management platform (carbon emission tracking + waste management + report generation) accessible via web browsers.
+2.Database — A MySQL database (10 tables + 2 views) along with a detailed database design document.
+3.Source Code Repository — A GitHub repository containing complete source code, commit history, and branch management records.
+4.User Manual — A user operation manual including system function descriptions and operation screenshots.
+5.Test Report — A test report covering functional testing, integration testing results, and defect records.
+6.Deployment Guide — A deployment document including virtual machine environment configuration and remote testing guidelines.
+
+
+
+
+# 3. Success Criteria
+
+The following success criteria are defined using the **SMART** framework (Specific, Measurable, Achievable, Relevant, Time-bound) to ensure clear, objective evaluation of project outcomes.
+
+**SC1 — Backend API Completion**
+All 22 RESTful API endpoints (covering authentication, carbon tracking, waste management, dashboard analytics, and report generation) shall be fully implemented and pass automated integration testing via Postman by **Week 8**. Each endpoint must return standardised JSON responses with appropriate HTTP status codes.
+
+**SC2 — Frontend Interface Delivery**
+Five complete business pages (Login, Dashboard, Carbon Tracking, Waste Management, and Report Generation) shall be developed with responsive layouts (Bootstrap 5) and interactive data visualisations (ECharts 5), rendering correctly on the latest versions of Chrome and Firefox, by **Week 12**.
+
+**SC3 — Remote Deployment and Accessibility**
+The platform shall be deployed to the university-provided virtual machine and accessible via a public URL by **Week 14**, enabling the examiner to remotely log in, navigate all modules, and verify functionality from any location using only a standard web browser.
+
+**SC4 — Data Security and Access Control**
+The system shall enforce role-based access control with two distinct roles (Business Admin and Staff). All user passwords must be stored using Werkzeug PBKDF2-SHA256 hashing. Every API endpoint (except the login page) shall require session-based authentication, and all database queries shall use parameterised statements to prevent SQL injection.
+
+**SC5 — Sustainability Report Generation and Export**
+The report module shall support three reporting periods (monthly, quarterly, annual) and a custom date range. Each generated report must automatically aggregate carbon emission and waste management data for the selected period, and the system shall export reports as downloadable PDF documents containing data summaries, trend analysis, and SDG alignment indicators.
+
+
+4、Development MethodologyWe adopt an incremental development approach, dividing the entire project into six sequential Work Packages (WP1–WP6) to ensure phased delivery, quality control, and flexible adaptation. Each WP is overseen by a dedicated manager who takes full responsibility for task coordination, resource allocation, and deadline adherence. Progress is systematically tracked through GitHub branch management—with separate branches for feature development, testing, and bug fixes—and weekly cross-team sync meetings. This framework allows us to promptly address technical bottlenecks, align on milestone progress, and adjust plans iteratively while maintaining the project’s core objectives, ensuring seamless collaboration between frontend, backend, and QA teams.Gantt Chart OverviewThe Gantt chart visualizes the project timeline spanning 18 weeks, from Week 1 to Week 18. WP1 (Requirements & Design) runs from Week 1 to Week 5, led by You Haoyang, culminating in finalized design documents (Milestone M1). WP2 (Backend Development) is led by Liu Haopu from Week 4 to Week 8, with completion marked by M2 and aligned with the mid-term review (M3). Li Sihang manages WP3 (Frontend Framework, Week 8–12) and WP4 (Frontend Modules, Week 10–15), ending with M4 (frontend completion). Lu Yu'an leads WP5 (Integration & Testing, Week 11–15), achieving M5 (platform deployment for remote access). Finally, Liu Haopu oversees WP6 (Documentation & Delivery, Week 13–16), concluding with M6 (final delivery and presentation).Current Project Status: The project is now in Week 5, at the final stage of WP1 Requirements & Design, and is about to enter WP2 Backend Development.
+
+5、Software AttributesFunctionality:Our platform mainly includes three key functions: tracking carbon emissions, managing waste classification, and automatically generating sustainability reports that align with UN goals (SDG 9, 11, 12, 13). Internally, we designed a set of standardized system interfaces (RESTful APIs) so that all these modules can work smoothly together and also support future expansion or integration with other systems.Performance:We ensure the system responds quickly by optimizing how data is stored and searched in the database, and by using efficient chart tools (like ECharts) for data display. In addition, static content is delivered through CDN, which helps reduce loading time for users.Maintainability:The system is built in a modular way, meaning different parts (like frontend and backend) are clearly separated. This makes it easier to update, fix, or add new features in the future without affecting the whole system.Reliability:We use strict data rules in the database to make sure all information stays accurate and consistent. At the same time, the system has unified error handling, so it behaves in a stable and predictable way even when something goes wrong.Security:User data security is a key priority. We apply encrypted password storage, login authentication, and role-based access control to ensure that only authorized users can access certain data. We also use secure query methods to prevent common attacks like SQL injection.Efficiency:To make better use of system resources, we reuse database connections and load common libraries (like Bootstrap and ECharts) through CDN. This reduces server workload and improves overall efficiency.Usability:The platform is designed with a user-friendly interface using responsive layout, so it works well on different devices. Forms are simple to use, and data is presented through clear visual charts. We also provide a demo account so users can quickly experience the system.
+Remote Testing (slightly improved):The system is deployed on a virtual machine hosted by University College Dublin and can be accessed remotely via a secure gateway. Users are provided with test accounts and clear instructions, allowing them to log in and test the platform from different locations in a controlled and secure way.
+
+6、Resource Requirements
+Team
+Member	Role
+You Haoyang	Requirements Analyst & WP1 Manager
+Liu Haopu	Technical Lead, Backend Developer & WP2/WP6 Manager
+Li Sihang	Frontend Developer & WP3/WP4 Manager
+Lu Yu'an	QA Engineer, Deployment & WP5 Manager
+Yao Tianren	Backend Contributor & Repository Manager
+Technology Stack
+Backend: Python 3.10+, Flask 3.x
+Database: MySQL 8.0+
+Frontend: HTML5, CSS3, JavaScript, Bootstrap 5, ECharts 5
+PDF Export: ReportLab
+Version Control: Git + GitHub
+Deployment: University-provided Virtual Machine (Linux)
+Cost
+All tools and frameworks used are open-source and free. Hosting is provided by the university's virtual machine infrastructure. No additional budget is required.
