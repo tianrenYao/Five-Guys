@@ -1,7 +1,10 @@
-# 从零开始运行指南
+# 项目部署与更新指南
 
-> 已在 macOS（Apple Silicon / Intel）和 Ubuntu 22.04 上验证。
-> Windows 用户请使用 WSL2（Ubuntu）或 Git Bash 执行 Shell 命令。
+> 已在 macOS（Apple Silicon / Intel）、Ubuntu 22.04 和 Windows WSL2 上验证。
+> Windows 原生用户请使用 WSL2（Ubuntu）或 Git Bash 执行 Shell 命令。
+>
+> **新成员/新设备快速开始**：按照第一步到第七步顺序执行即可。
+> **已有环境更新代码**：只需执行 [拉取最新代码](#拉取最新代码更新) 和 [运行迁移脚本](#第四步b--运行数据库迁移脚本) 两步。
 
 ---
 
@@ -212,6 +215,7 @@ flask-cors==5.0.1
 PyMySQL==1.1.1
 werkzeug==3.1.3
 python-dotenv==1.1.0
+Flask-Mail==0.10.0    # 邮件通知（v2.0 新增）
 cryptography          # MySQL 认证（caching_sha2_password 方式必需）
 weasyprint==62.3      # PDF 导出（需要 pango 系统库）
 Jinja2==3.1.4
@@ -223,6 +227,133 @@ pdfplumber==0.11.0    # OCR PDF 解析（可选）
 一条命令安装全部：
 
 ```bash
-pip3 install Flask flask-cors PyMySQL werkzeug python-dotenv cryptography \
-             weasyprint Jinja2 pytesseract Pillow pdfplumber
+pip3 install -r requirements.txt
 ```
+
+---
+
+## 拉取最新代码（更新）
+
+已有本地环境的成员，更新代码后只需执行以下两步：
+
+```bash
+# 1. 拉取最新代码
+git pull
+
+# 2. 安装新增依赖（v2.0 新增了 Flask-Mail）
+pip3 install -r requirements.txt
+
+# 3. 运行数据库迁移脚本（见下方说明）
+python3 database/run_migrations.py
+```
+
+---
+
+## 第四步(B) — 运行数据库迁移脚本
+
+> 适用场景：代码更新后需要同步数据库结构变更，或在新设备上首次部署。
+
+### 使用方法
+
+在**项目根目录**执行（任意操作系统通用）：
+
+```bash
+python3 database/run_migrations.py
+```
+
+脚本会自动读取 `.env` 中的数据库配置，**无需手动输入密码**。
+
+### 脚本特性
+
+- **幂等性**：可重复执行，已存在的表/列会自动跳过（显示 `⏩ skip`），不会报错
+- **跨平台**：macOS / Ubuntu / Windows WSL2 均可直接运行
+- **清晰输出**：每步操作显示 `✅` 成功 / `⏩` 跳过 / `⚠️` 警告 / `❌` 错误
+
+### 预期输出示例
+
+```
+✅ Connected to MySQL [localhost:3306] — database: sustainability_platform
+
+=== Migration 1: notify_email ===
+  ✅ add notify_email to alert_threshold
+
+=== Migration 2: supplier table ===
+  ✅ create supplier table
+
+=== Migration 3: esg_policy table ===
+  ✅ create esg_policy table
+
+=== Seed: sample suppliers ===
+  ✅ supplier: GreenBean Co.
+  ✅ supplier: EcoPack Ltd.
+  ...
+
+✅ All migrations complete!
+```
+
+如果是已运行过的环境，输出会显示：
+
+```
+  ⏩ already exists — skip: add notify_email to alert_threshold
+  ⏩ already exists — skip: create supplier table
+  ...
+✅ All migrations complete!
+```
+
+### 常见错误
+
+| 错误信息 | 原因 | 解决方法 |
+|---|---|---|
+| `Cannot connect to database` | `.env` 配置有误或 MySQL 未启动 | 检查 `MYSQL_PASSWORD`；确认 MySQL 服务运行中 |
+| `PyMySQL not installed` | 依赖未安装 | `pip3 install PyMySQL` |
+| `❌ create supplier table: ...` | 外键引用的表不存在 | 先运行 `mysql -u root -p < database/schema.sql` |
+
+---
+
+## 邮件通知配置（可选）
+
+v2.0 新增了预警邮件通知功能。**不配置也能正常运行**（自动切换为 Mock 模式，邮件内容打印到终端）。
+
+### Mock 模式（默认，无需配置）
+
+`.env` 中不填写 `MAIL_SERVER`，系统触发预警时在终端打印：
+
+```
+[Mail MOCK] Would send to=['xxx@example.com'] | Subject: [ESG Alert] ...
+Body: Carbon emissions at Store X exceeded threshold ...
+```
+
+### 真实发送模式 — 推荐使用 Mailtrap（演示用）
+
+[Mailtrap](https://mailtrap.io) 是专为开发/演示设计的邮件沙箱，邮件不会真正发出，全部拦截在 Mailtrap 网页收件箱，**演示效果极佳**。
+
+**注册步骤：**
+
+1. 访问 [mailtrap.io](https://mailtrap.io) → 用 GitHub/Google 一键注册（免费）
+2. 进入 **Email Testing → Sandboxes → 点击你的 inbox**
+3. 点击 **SMTP Settings**，选择 **Other** 集成方式
+4. 复制显示的 Host、Port、Username、Password
+
+**在 `.env` 中添加：**
+
+```ini
+MAIL_SERVER=sandbox.smtp.mailtrap.io
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=<Mailtrap 页面上的 Username>
+MAIL_PASSWORD=<Mailtrap 页面上的 Password>
+MAIL_DEFAULT_SENDER=noreply@esg-platform.com
+```
+
+**验证：**
+
+重启服务器后，在 Alerts 页面触发一条预警，登录 Mailtrap 即可在收件箱看到邮件。
+
+### 其他 SMTP 服务（自用邮箱）
+
+| 服务 | MAIL_SERVER | MAIL_PORT | 备注 |
+|---|---|---|---|
+| Gmail | `smtp.gmail.com` | `587` | 需开启两步验证并生成 App Password |
+| QQ 邮箱 | `smtp.qq.com` | `587` | 需在 QQ 邮件设置中开启 SMTP 并获取授权码 |
+| 163 邮箱 | `smtp.163.com` | `465` | `MAIL_USE_TLS=False`，改用 SSL |
+| Outlook | `smtp.office365.com` | `587` | 使用账号密码直接登录 |

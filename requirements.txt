@@ -14,5 +14,8 @@ pytesseract==0.3.13
 Pillow==10.3.0
 pdfplumber==0.11.0
 
+# Email notifications
+Flask-Mail==0.10.0
+
 # Environment config
 python-dotenv==1.1.0

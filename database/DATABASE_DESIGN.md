@@ -135,7 +135,7 @@ waste_category   1──N  waste_record
 | status | ENUM | draft/generated/exported |
 
 ### 4.8 `sdg_goal` - SDG 目标参照表
-存储联合国 17 个可持续发展目标，平台预置与项目相关的 4 个（SDG 9/11/12/13）。
+平台聚焦 **UN SDG 12（负责任的消费与生产）**，仅预置 SDG 12 一条记录，覆盖 Targets 12.2 / 12.3 / 12.5 / 12.6。
 
 ### 4.9 `company_sdg` - 企业 SDG 关联表
 多对多关系，记录企业关注的 SDG 目标及进展。

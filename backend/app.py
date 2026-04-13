@@ -30,6 +30,13 @@ def create_app():
     from backend.routes.report import report_bp
     from backend.routes.alert import alert_bp
     from backend.routes.ocr import ocr_bp
+    from backend.routes.audit import audit_bp
+    from backend.routes.admin import admin_bp
+    from backend.routes.anomaly import anomaly_bp
+    from backend.routes.training import training_bp
+    from backend.routes.compliance import compliance_bp
+    from backend.routes.supplier import supplier_bp
+    from backend.routes.policy import policy_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -38,6 +45,17 @@ def create_app():
     app.register_blueprint(report_bp)
     app.register_blueprint(alert_bp)
     app.register_blueprint(ocr_bp)
+    app.register_blueprint(audit_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(anomaly_bp)
+    app.register_blueprint(training_bp)
+    app.register_blueprint(compliance_bp)
+    app.register_blueprint(supplier_bp)
+    app.register_blueprint(policy_bp)
+
+    # Init Flask-Mail (falls back to mock if MAIL_SERVER not set)
+    from backend.utils.mail import init_mail
+    init_mail(app)
 
     # Root redirect
     @app.route('/')

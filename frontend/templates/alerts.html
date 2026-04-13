@@ -25,6 +25,7 @@
                                 <th>Condition</th>
                                 <th>Threshold</th>
                                 <th>Status</th>
+                                <th>Notify Email</th>
                                 <th>Created By</th>
                                 <th></th>
                             </tr>
@@ -112,6 +113,12 @@
                             <option value="region">Region</option>
                             <option value="store">Specific store</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notify Email <small class="text-muted">(optional, comma-separated)</small></label>
+                        <input type="text" class="form-control" id="notify_email"
+                               placeholder="e.g. manager@cafe.com, esg@cafe.com">
+                        <div class="form-text">Alert email sent when threshold breached. Leave blank to disable.</div>
                     </div>
                     <div id="thresholdAlert" class="alert d-none"></div>
                 </form>

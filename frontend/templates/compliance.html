@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Compliance Score - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-patch-check me-1"></i> ESG Compliance Scorecard{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Controls -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex gap-3 align-items-end flex-wrap">
+                <div>
+                    <label class="form-label mb-1 small">Assessment Year</label>
+                    <select class="form-select form-select-sm" id="ctrlYear" style="width:120px;"></select>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="loadScore()">
+                    <i class="bi bi-patch-check me-1"></i>Calculate Score
+                </button>
+                <div id="scoreStatus" class="text-muted small align-self-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Score Gauge -->
+    <div class="col-12 col-md-4" id="gaugeCol" style="display:none">
+        <div class="card border-0 shadow-sm h-100 text-center py-4">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <div id="scoreGauge" style="width:220px;height:220px;"></div>
+                <h3 class="mt-2 mb-0" id="gradeLabel" style="font-size:3rem;font-weight:800;"></h3>
+                <p class="text-muted mb-0" id="gradeDesc"></p>
+                <small class="text-muted mt-2" id="scoreYear"></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dimension Cards -->
+    <div class="col-12 col-md-8" id="dimensionsCol" style="display:none">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Dimension Breakdown</h6>
+            </div>
+            <div class="card-body" id="dimensionsBody"></div>
+        </div>
+    </div>
+
+    <!-- Detailed Metrics -->
+    <div class="col-12" id="detailCol" style="display:none">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-table me-1"></i> Detailed Metrics</h6>
+            </div>
+            <div class="card-body" id="detailBody"></div>
+        </div>
+    </div>
+
+    <!-- Placeholder -->
+    <div class="col-12 text-center py-5" id="placeholder">
+        <i class="bi bi-patch-check text-muted" style="font-size:3rem;"></i>
+        <p class="text-muted mt-3">Select a year and click <strong>Calculate Score</strong> to generate your ESG compliance scorecard.</p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const sel  = document.getElementById('ctrlYear');
+    const year = new Date().getFullYear();
+    for (let y = year; y >= year - 3; y--) {
+        sel.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
+    }
+    loadScore();
+});
+
+const GRADE_DESC = {
+    A: 'Excellent — Industry Leading ESG Performance',
+    B: 'Good — Above Average Compliance',
+    C: 'Fair — Meets Basic Requirements',
+    D: 'Poor — Significant Gaps Identified',
+    F: 'Non-Compliant — Immediate Action Required'
+};
+
+async function loadScore() {
+    const year = document.getElementById('ctrlYear').value;
+    document.getElementById('scoreStatus').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Calculating...';
+
+    const data = await apiFetch(`/api/compliance/score?year=${year}`);
+    document.getElementById('scoreStatus').textContent = '';
+
+    if (!data || !data.success) {
+        document.getElementById('scoreStatus').textContent = 'Failed to calculate score.';
+        return;
+    }
+
+    document.getElementById('placeholder').style.display    = 'none';
+    document.getElementById('gaugeCol').style.display       = '';
+    document.getElementById('dimensionsCol').style.display  = '';
+    document.getElementById('detailCol').style.display      = '';
+
+    // Grade label
+    document.getElementById('gradeLabel').textContent = data.grade;
+    document.getElementById('gradeLabel').style.color = data.grade_color;
+    document.getElementById('gradeDesc').textContent  = GRADE_DESC[data.grade] || '';
+    document.getElementById('scoreYear').textContent  = `Year ${data.year}`;
+
+    // Gauge chart
+    const gaugeEl = document.getElementById('scoreGauge');
+    let gaugeChart = echarts.getInstanceByDom(gaugeEl) || echarts.init(gaugeEl);
+    gaugeChart.setOption({
+        series: [{
+            type: 'gauge',
+            radius: '90%',
+            startAngle: 200, endAngle: -20,
+            min: 0, max: 100,
+            pointer: { show: true, length: '60%', width: 5 },
+            progress: { show: true, width: 12 },
+            axisLine: { lineStyle: { width: 12 } },
+            axisTick: { show: false },
+            splitLine: { length: 10, lineStyle: { width: 2 } },
+            axisLabel: { distance: 18, fontSize: 9 },
+            detail: {
+                valueAnimation: true,
+                fontSize: 28, fontWeight: 700,
+                formatter: '{value}',
+                offsetCenter: [0, '60%'],
+                color: data.grade_color
+            },
+            data: [{ value: data.total, name: 'Score', itemStyle: { color: data.grade_color } }]
+        }]
+    });
+
+    // Dimension bars
+    const dimBody = document.getElementById('dimensionsBody');
+    dimBody.innerHTML = data.dimensions.map(d => `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span><i class="bi ${d.icon} me-2" style="color:${d.color}"></i><strong>${d.name}</strong></span>
+                <span class="text-muted small">${d.score} / ${d.max} pts</span>
+            </div>
+            <div class="progress" style="height:10px; border-radius:6px;">
+                <div class="progress-bar" role="progressbar"
+                     style="width:${d.pct}%; background:${d.color}; border-radius:6px;">
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Detailed metrics table
+    renderDetails(data.dimensions);
+}
+
+function renderDetails(dims) {
+    const body = document.getElementById('detailBody');
+    const rows = dims.map(d => {
+        const lines = Object.entries(d.detail || {}).map(([k, v]) => {
+            const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            return `<tr><td class="text-muted small ps-4">${label}</td><td class="small">${v}</td></tr>`;
+        }).join('');
+        return `
+            <tr class="table-light">
+                <td colspan="2"><i class="bi ${d.icon} me-1" style="color:${d.color}"></i>
+                    <strong>${d.name}</strong>
+                    <span class="badge ms-2" style="background:${d.color}">${d.score}/${d.max}</span>
+                </td>
+            </tr>
+            ${lines}
+        `;
+    }).join('');
+
+    body.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
+</script>
+{% endblock %}

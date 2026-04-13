@@ -128,12 +128,88 @@ async function loadRecords() {
             <td><strong>${formatNumber(r.total_carbon)}</strong> kgCO2e</td>
             <td><small class="text-muted">${r.recorded_by || '-'}</small></td>
             <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${r.id})" title="Delete">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditCarbon(${r.id},'${r.record_date}',${r.activity_value},'${r.note||''}')" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${r.id})" title="Delete/Withdraw">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
         </tr>
     `).join('');
+}
+
+function openEditCarbon(id, date, activity, note) {
+    document.getElementById('editCarbonId').value       = id;
+    document.getElementById('editCarbonDate').value     = date;
+    document.getElementById('editCarbonActivity').value = activity;
+    document.getElementById('editCarbonNote').value     = note;
+    document.getElementById('editCarbonAlert').className = 'alert d-none';
+    new bootstrap.Modal(document.getElementById('editCarbonModal')).show();
+}
+
+async function saveEditCarbon() {
+    const id = document.getElementById('editCarbonId').value;
+    const payload = {
+        record_date:    document.getElementById('editCarbonDate').value,
+        activity_value: parseFloat(document.getElementById('editCarbonActivity').value),
+        note:           document.getElementById('editCarbonNote').value
+    };
+    const data = await apiFetch(`/api/carbon/edit/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+    });
+    if (data && data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('editCarbonModal')).hide();
+        loadRecords();
+    } else {
+        showAlert('editCarbonAlert', (data && data.message) || 'Update failed.');
+    }
+}
+
+async function showCompare() {
+    const modal = new bootstrap.Modal(document.getElementById('compareModal'));
+    document.getElementById('compareBody').innerHTML =
+        '<div class="text-center py-4"><div class="spinner-border"></div></div>';
+    modal.show();
+
+    const storeEl = document.getElementById('filterStore');
+    const storeId = storeEl ? storeEl.value : '';
+    const url = '/api/carbon/compare' + (storeId ? `?store_id=${storeId}` : '');
+    const data = await apiFetch(url);
+    if (!data || !data.success || !data.data.this_month && data.data.this_month !== 0) {
+        document.getElementById('compareBody').innerHTML = '<p class="text-muted text-center">No comparison data available.</p>';
+        return;
+    }
+    const d = data.data;
+    const momBadge = d.mom_pct === null ? '<span class="text-muted">N/A</span>'
+        : d.mom_pct > 0
+            ? `<span class="text-danger">▲ ${d.mom_pct}%</span>`
+            : `<span class="text-success">▼ ${Math.abs(d.mom_pct)}%</span>`;
+    document.getElementById('compareBody').innerHTML = `
+        <div class="row g-3 text-center">
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">This Month</div>
+                    <div class="fs-3 fw-bold text-dark">${d.this_month.toLocaleString()} <small class="fs-6 text-muted">kgCO2e</small></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">Last Month</div>
+                    <div class="fs-3 fw-bold text-dark">${d.last_month.toLocaleString()} <small class="fs-6 text-muted">kgCO2e</small></div>
+                    <div class="mt-1">${momBadge} MoM</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">Region Avg (This Month)</div>
+                    <div class="fs-3 fw-bold text-dark">${d.region_avg !== null ? d.region_avg.toLocaleString() : '—'} <small class="fs-6 text-muted">kgCO2e</small></div>
+                    ${d.region_avg !== null ? `<div class="mt-1 small ${d.this_month > d.region_avg ? 'text-danger' : 'text-success'}">
+                        ${d.this_month > d.region_avg ? '▲ Above' : '▼ Below'} regional average</div>` : ''}
+                </div>
+            </div>
+        </div>`;
 }
 
 async function addRecord(e) {
@@ -264,4 +340,12 @@ async function scanBill(input) {
 
     // Reset file input so the same file can be re-scanned
     input.value = '';
+}
+
+function exportCSV() {
+    const store   = document.getElementById('filterStore')?.value  || '';
+    const from    = document.getElementById('filterFrom')?.value   || '';
+    const to      = document.getElementById('filterTo')?.value     || '';
+    const params  = new URLSearchParams({ store_id: store, date_from: from, date_to: to });
+    window.location.href = '/api/carbon/export-csv?' + params;
 }

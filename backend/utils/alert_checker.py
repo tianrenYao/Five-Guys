@@ -4,6 +4,7 @@ Real-time alert checking called after every carbon / waste record insertion.
 """
 
 from backend.utils.db import query_db, execute_db
+from backend.utils.mail import send_alert_email
 
 
 def _already_alerted(company_id, store_id, metric_type, year, month):
@@ -27,6 +28,22 @@ def _insert_alert(company_id, store_id, threshold_id, metric_type,
         (company_id, store_id, threshold_id, metric_type,
          round(float(current_value), 2), round(float(threshold_value), 2))
     )
+
+    # Send email notification (mock if SMTP not configured)
+    try:
+        store_row = query_db('SELECT name FROM store WHERE id = %s', (store_id,), one=True)
+        store_name = store_row['name'] if store_row else f'Store #{store_id}'
+        if threshold_id:
+            t_row = query_db(
+                'SELECT notify_email FROM alert_threshold WHERE id = %s', (threshold_id,), one=True
+            )
+            if t_row and t_row.get('notify_email'):
+                recipients = [e.strip() for e in t_row['notify_email'].split(',') if e.strip()]
+                send_alert_email(recipients, metric_type, store_name,
+                                 float(current_value), float(threshold_value))
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error('[alert_checker] email error: %s', exc)
 
 
 def check_alerts_for_store(company_id, store_id):

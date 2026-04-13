@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Audit Log - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-shield-check me-1"></i> Audit Log{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Stats Cards -->
+    <div class="col-12">
+        <div class="row g-3" id="statsCards">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-primary" id="statLogin">—</div>
+                    <small class="text-muted">Logins (7d)</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-success" id="statCreate">—</div>
+                    <small class="text-muted">Records Created (7d)</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-danger" id="statDelete">—</div>
+                    <small class="text-muted">Records Deleted (7d)</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-warning" id="statExport">—</div>
+                    <small class="text-muted">Exports (7d)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-1">Action</label>
+                        <select class="form-select form-select-sm" id="filterAction">
+                            <option value="">All Actions</option>
+                            <option value="LOGIN">LOGIN</option>
+                            <option value="LOGOUT">LOGOUT</option>
+                            <option value="CREATE">CREATE</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="EXPORT">EXPORT</option>
+                            <option value="UPDATE">UPDATE</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-1">Target Type</label>
+                        <select class="form-select form-select-sm" id="filterTarget">
+                            <option value="">All Types</option>
+                            <option value="carbon_record">Carbon Record</option>
+                            <option value="waste_record">Waste Record</option>
+                            <option value="report">Report</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-1">From</label>
+                        <input type="date" class="form-control form-control-sm" id="filterFrom">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-1">To</label>
+                        <input type="date" class="form-control form-control-sm" id="filterTo">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-1">Limit</label>
+                        <select class="form-select form-select-sm" id="filterLimit">
+                            <option value="100">100</option>
+                            <option value="200" selected>200</option>
+                            <option value="500">500</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2 d-flex gap-2">
+                        <button class="btn btn-sm btn-success w-100" onclick="loadLogs()">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()" title="Reset">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-list-ul me-1"></i>
+                    Operation Records
+                    <span class="badge bg-secondary ms-1 fw-normal" id="totalCount">—</span>
+                </h6>
+                <small class="text-muted" id="lastRefreshTime"></small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time</th>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Detail</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Loading...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ACTION_BADGES = {
+    'LOGIN':   'bg-primary',
+    'LOGOUT':  'bg-secondary',
+    'CREATE':  'bg-success',
+    'DELETE':  'bg-danger',
+    'EXPORT':  'bg-warning text-dark',
+    'UPDATE':  'bg-info text-dark',
+};
+
+const ROLE_BADGES = {
+    'admin':          'bg-danger',
+    'hq_manager':     'bg-primary',
+    'region_manager': 'bg-info text-dark',
+    'store_staff':    'bg-success',
+};
+
+const TARGET_LABELS = {
+    'carbon_record': '<i class="bi bi-lightning-charge"></i> Carbon',
+    'waste_record':  '<i class="bi bi-recycle"></i> Waste',
+    'report':        '<i class="bi bi-file-earmark-text"></i> Report',
+};
+
+async function loadStats() {
+    try {
+        const res = await fetch('/api/audit/stats');
+        const json = await res.json();
+        if (!json.success) return;
+        const d = json.data;
+        document.getElementById('statLogin').textContent  = (d['LOGIN']  || 0);
+        document.getElementById('statCreate').textContent = (d['CREATE'] || 0);
+        document.getElementById('statDelete').textContent = (d['DELETE'] || 0);
+        document.getElementById('statExport').textContent = (d['EXPORT'] || 0);
+    } catch (_) {}
+}
+
+async function loadLogs() {
+    const tbody = document.getElementById('auditLogBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">' +
+        '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</td></tr>';
+
+    const params = new URLSearchParams({
+        action:      document.getElementById('filterAction').value,
+        target_type: document.getElementById('filterTarget').value,
+        date_from:   document.getElementById('filterFrom').value,
+        date_to:     document.getElementById('filterTo').value,
+        limit:       document.getElementById('filterLimit').value,
+    });
+
+    try {
+        const res = await fetch('/api/audit/logs?' + params);
+        const json = await res.json();
+        if (!json.success) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Failed to load data.</td></tr>';
+            return;
+        }
+        renderLogs(json.data);
+        document.getElementById('totalCount').textContent = json.total;
+        document.getElementById('lastRefreshTime').textContent =
+            'Updated: ' + new Date().toLocaleTimeString();
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Network error.</td></tr>';
+    }
+}
+
+function renderLogs(rows) {
+    const tbody = document.getElementById('auditLogBody');
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No records found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => {
+        const actionBadge   = ACTION_BADGES[r.action]   || 'bg-secondary';
+        const roleBadge     = ROLE_BADGES[r.user_role]   || 'bg-secondary';
+        const targetLabel   = TARGET_LABELS[r.target_type] || (r.target_type || '—');
+        const targetIdText  = r.target_id ? ` #${r.target_id}` : '';
+        const userName      = r.display_name || r.username || '<span class="text-muted">System</span>';
+        const detail        = r.detail ? `<span title="${r.detail}" class="text-truncate d-inline-block" style="max-width:220px">${r.detail}</span>` : '—';
+        const ip            = r.ip_address || '—';
+        const timeStr       = r.created_at ? r.created_at.replace('T', ' ').substring(0, 19) : '—';
+
+        return `<tr>
+            <td class="text-nowrap small text-muted">${timeStr}</td>
+            <td class="small fw-semibold">${userName}</td>
+            <td><span class="badge ${roleBadge} small">${r.user_role || '—'}</span></td>
+            <td><span class="badge ${actionBadge}">${r.action}</span></td>
+            <td class="small">${targetLabel}${targetIdText}</td>
+            <td class="small">${detail}</td>
+            <td class="small text-muted">${ip}</td>
+        </tr>`;
+    }).join('');
+}
+
+function resetFilters() {
+    document.getElementById('filterAction').value  = '';
+    document.getElementById('filterTarget').value  = '';
+    document.getElementById('filterFrom').value    = '';
+    document.getElementById('filterTo').value      = '';
+    document.getElementById('filterLimit').value   = '200';
+    loadLogs();
+}
+
+loadStats();
+loadLogs();
+</script>
+{% endblock %}

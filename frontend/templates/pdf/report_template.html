@@ -57,12 +57,30 @@
   }
   .ai-box p { font-size: 10.5pt; line-height: 1.6; color: #333; }
 
-  /* SDG row */
-  .sdg-tag {
-    display: inline-block; background: #e8f5e9; color: #2e7d32;
-    border-radius: 4px; padding: 3px 8px; font-size: 9pt;
-    margin: 3px 2px;
+  /* SDG 12 card */
+  .sdg12-wrap {
+    background: linear-gradient(135deg,#bf360c 0%,#e53935 100%);
+    border-radius: 12px; padding: 18px 20px; color: #fff; margin-top: 12px;
   }
+  .sdg12-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .sdg12-badge {
+    background: rgba(255,255,255,0.2); border-radius: 8px;
+    padding: 6px 10px; font-size: 18pt; font-weight: 800; line-height: 1;
+  }
+  .sdg12-title { font-size: 13pt; font-weight: 700; }
+  .sdg12-subtitle { font-size: 9pt; opacity: 0.85; margin-top: 2px; }
+  .sdg12-overall { font-size: 26pt; font-weight: 800; text-align: center; }
+  .sdg12-overall-label { font-size: 8pt; opacity: 0.8; text-align: center; }
+  .sdg12-grid { display: flex; gap: 10px; margin-top: 14px; }
+  .sdg12-sub {
+    flex: 1; background: rgba(255,255,255,0.12);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .sdg12-sub .target { font-size: 7.5pt; font-weight: 700; opacity: 0.75; margin-bottom: 3px; }
+  .sdg12-sub .desc   { font-size: 8pt; font-weight: 600; margin-bottom: 8px; line-height: 1.3; }
+  .sdg-bar-bg  { background: rgba(255,255,255,0.25); border-radius: 4px; height: 7px; }
+  .sdg-bar-fill { background: #fff; border-radius: 4px; height: 7px; }
+  .sdg12-sub .pct { font-size: 12pt; font-weight: 700; margin-top: 5px; }
 
   /* Footer */
   .footer {
@@ -222,15 +240,61 @@
     {% endif %}
   </div>
 
-  <!-- SDG Alignment -->
-  <div class="section-title">UN SDG Alignment</div>
-  <p style="margin-bottom:8px; font-size:10pt;">
-    This report contributes evidence towards the following Sustainable Development Goals:
+  <!-- SDG 12 Alignment -->
+  <div class="section-title">UN SDG 12 Alignment &amp; Performance Indicators</div>
+  <p style="font-size:9.5pt; color:#555; margin-bottom:8px;">
+    This platform is designed around <strong>UN Sustainable Development Goal 12 — Responsible Consumption and Production</strong>,
+    tracking the full lifecycle of resource use and waste across all stores.
   </p>
-  <span class="sdg-tag">SDG 9 — Industry &amp; Innovation</span>
-  <span class="sdg-tag">SDG 11 — Sustainable Cities</span>
-  <span class="sdg-tag">SDG 12 — Responsible Consumption</span>
-  <span class="sdg-tag">SDG 13 — Climate Action</span>
+
+  <div class="sdg12-wrap">
+    <div class="sdg12-header">
+      <div class="sdg12-badge">12</div>
+      <div>
+        <div class="sdg12-title">Responsible Consumption &amp; Production</div>
+        <div class="sdg12-subtitle">Targets: 12.2 &middot; 12.3 &middot; 12.5 &middot; 12.6</div>
+      </div>
+      <div style="margin-left:auto; text-align:center;">
+        <div class="sdg12-overall">{{ sdg_scores.overall }}%</div>
+        <div class="sdg12-overall-label">Overall Score</div>
+      </div>
+    </div>
+
+    <div class="sdg12-grid">
+
+      <div class="sdg12-sub">
+        <div class="target">TARGET 12.5</div>
+        <div class="desc">Waste Recovery Rate</div>
+        <div class="sdg-bar-bg"><div class="sdg-bar-fill" style="{{ sdg_scores.sdg12_recovery_bar }}"></div></div>
+        <div class="pct">{{ sdg_scores.sdg12_recovery }}%</div>
+      </div>
+
+      <div class="sdg12-sub">
+        <div class="target">TARGET 12.2</div>
+        <div class="desc">Production Carbon Efficiency</div>
+        <div class="sdg-bar-bg"><div class="sdg-bar-fill" style="{{ sdg_scores.sdg12_carbon_bar }}"></div></div>
+        <div class="pct">{{ sdg_scores.sdg12_carbon }}%</div>
+      </div>
+
+      <div class="sdg12-sub">
+        <div class="target">TARGET 12.6</div>
+        <div class="desc">Sustainability Reporting</div>
+        <div class="sdg-bar-bg"><div class="sdg-bar-fill" style="{{ sdg_scores.sdg12_reporting_bar }}"></div></div>
+        <div class="pct">{{ sdg_scores.sdg12_reporting }}%</div>
+      </div>
+
+      <div class="sdg12-sub">
+        <div class="target">TARGET 12.3</div>
+        <div class="desc">Store Data Coverage</div>
+        <div class="sdg-bar-bg"><div class="sdg-bar-fill" style="{{ sdg_scores.sdg12_coverage_bar }}"></div></div>
+        <div class="pct">{{ sdg_scores.sdg12_coverage }}%</div>
+      </div>
+
+    </div>
+  </div>
+  <p style="font-size:8pt; color:#aaa; margin-top:8px;">
+    * 12.5 target: ≥60% waste recovery rate; 12.2 target: carbon intensity below 50 kgCO₂e/store/month; 12.6 target: ≥4 sustainability reports per year.
+  </p>
 
 </div>
 

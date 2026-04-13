@@ -58,6 +58,52 @@
                     </a>
                 </li>
                 {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/training' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                       href="/training">
+                        <i class="bi bi-mortarboard me-2"></i>Training
+                    </a>
+                </li>
+                {% if session.get('role') in ('hq_manager', 'region_manager', 'admin') %}
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/compliance' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                       href="/compliance">
+                        <i class="bi bi-patch-check me-2"></i>Compliance Score
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/admin/anomaly-detection' %}active bg-warning bg-opacity-25 rounded{% endif %}"
+                       href="/admin/anomaly-detection">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Anomaly Detection
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/supplier' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                       href="/supplier">
+                        <i class="bi bi-building-check me-2"></i>Supplier ESG
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/policy' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                       href="/policy">
+                        <i class="bi bi-file-earmark-text me-2"></i>ESG Policies
+                    </a>
+                </li>
+                {% if session.get('role') in ('hq_manager', 'admin') %}
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/admin/users' %}active bg-info bg-opacity-25 rounded{% endif %}"
+                       href="/admin/users">
+                        <i class="bi bi-people me-2"></i>User Management
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white {% if request.path == '/admin/audit-log' %}active bg-info bg-opacity-25 rounded{% endif %}"
+                       href="/admin/audit-log">
+                        <i class="bi bi-shield-check me-2"></i>Audit Log
+                    </a>
+                </li>
+                {% endif %}
             </ul>
             <div class="mt-auto p-3 border-top border-secondary">
                 <small class="text-muted d-block">Logged in as</small>

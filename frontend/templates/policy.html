@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}ESG Policies — Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-file-earmark-text me-1"></i> ESG Policy Management{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Policy List -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-list-ul me-1"></i> Policies</h6>
+        {% if session.get('role') in ('hq_manager','admin') %}
+        <button class="btn btn-sm btn-outline-success" onclick="openNewPolicy()">
+          <i class="bi bi-plus-lg me-1"></i>New
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div id="policyList" class="list-group list-group-flush">
+          <div class="text-center text-muted py-4">Loading…</div>
+        </div>
+        <div id="mockBadge" class="d-none">
+          <div class="alert alert-info m-2 py-2 small"><i class="bi bi-info-circle me-1"></i>Showing mock data — run migration SQL to activate live data.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Policy Detail + Editor -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100" id="policyDetailCard">
+      <div class="card-body d-flex align-items-center justify-content-center text-muted" id="policyPlaceholder">
+        <div class="text-center">
+          <i class="bi bi-file-earmark-text display-4 mb-3"></i>
+          <p>Select a policy from the list to view its content.</p>
+        </div>
+      </div>
+      <!-- Read view -->
+      <div class="d-none" id="policyReadView">
+        <div class="card-header bg-white">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="mb-1" id="pDetailTitle"></h5>
+              <span class="badge" id="pDetailCatBadge"></span>
+              <span class="badge bg-secondary ms-1" id="pDetailStatus"></span>
+              <span class="text-muted small ms-2" id="pDetailVersion"></span>
+            </div>
+            {% if session.get('role') in ('hq_manager','admin') %}
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-primary" onclick="openEditPolicy()"><i class="bi bi-pencil me-1"></i>Edit</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deletePolicy()"><i class="bi bi-trash"></i></button>
+            </div>
+            {% endif %}
+          </div>
+          <div class="text-muted small mt-1">Effective: <span id="pDetailDate"></span> &nbsp;|&nbsp; By: <span id="pDetailAuthor"></span></div>
+        </div>
+        <div class="card-body" id="pDetailContent" style="white-space:pre-wrap;font-size:0.9rem;"></div>
+      </div>
+      <!-- Edit view -->
+      <div class="d-none" id="policyEditView">
+        <div class="card-header bg-white">
+          <h6 class="mb-0" id="pEditTitle">New Policy</h6>
+        </div>
+        <div class="card-body">
+          <input type="hidden" id="editPolicyId">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Title *</label>
+              <input type="text" class="form-control" id="pTitle" placeholder="Policy title">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Category</label>
+              <select class="form-select" id="pCategory">
+                <option value="sdg12">SDG 12</option>
+                <option value="environment">Environment</option>
+                <option value="social">Social</option>
+                <option value="governance">Governance</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="pStatus">
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Effective Date</label>
+              <input type="date" class="form-control" id="pEffectiveDate">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Version</label>
+              <input type="text" class="form-control" id="pVersion" placeholder="1.0">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Content *</label>
+              <textarea class="form-control font-monospace" id="pContent" rows="14"
+                        placeholder="Write policy content here (Markdown supported)…"></textarea>
+            </div>
+          </div>
+          <div id="policyEditAlert" class="alert d-none mt-3"></div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-success" onclick="savePolicy()"><i class="bi bi-check2 me-1"></i>Save</button>
+            <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CAT_COLOR = { sdg12:'danger', environment:'success', social:'primary', governance:'warning', other:'secondary' };
+let _policies = [];
+let _currentPolicy = null;
+
+document.addEventListener('DOMContentLoaded', loadPolicies);
+
+async function loadPolicies() {
+  const data = await apiFetch('/api/policy/list');
+  if (!data || !data.success) return;
+  _policies = data.data;
+  if (data.mock) document.getElementById('mockBadge').classList.remove('d-none');
+
+  const listEl = document.getElementById('policyList');
+  if (!_policies.length) {
+    listEl.innerHTML = '<div class="text-center text-muted py-4">No policies yet.</div>';
+    return;
+  }
+  listEl.innerHTML = _policies.map(p => `
+    <button class="list-group-item list-group-item-action px-3 py-2" onclick="viewPolicy(${p.id})">
+      <div class="d-flex justify-content-between align-items-center">
+        <strong class="small">${p.title}</strong>
+        <span class="badge bg-${CAT_COLOR[p.category]||'secondary'} ms-2">${p.category}</span>
+      </div>
+      <div class="text-muted" style="font-size:0.75rem">${p.status} · v${p.version}</div>
+    </button>
+  `).join('');
+}
+
+function viewPolicy(id) {
+  _currentPolicy = _policies.find(p => p.id === id);
+  if (!_currentPolicy) return;
+  const p = _currentPolicy;
+  document.getElementById('policyPlaceholder').classList.add('d-none');
+  document.getElementById('policyEditView').classList.add('d-none');
+  document.getElementById('policyReadView').classList.remove('d-none');
+  document.getElementById('pDetailTitle').textContent   = p.title;
+  document.getElementById('pDetailVersion').textContent = 'v' + p.version;
+  document.getElementById('pDetailStatus').textContent  = p.status;
+  document.getElementById('pDetailDate').textContent    = p.effective_date || '—';
+  document.getElementById('pDetailAuthor').textContent  = p.created_by_name || '—';
+  const catBadge = document.getElementById('pDetailCatBadge');
+  catBadge.className = `badge bg-${CAT_COLOR[p.category]||'secondary'}`;
+  catBadge.textContent = p.category;
+  document.getElementById('pDetailContent').textContent = p.content;
+}
+
+function openNewPolicy() {
+  _currentPolicy = null;
+  document.getElementById('editPolicyId').value = '';
+  document.getElementById('pTitle').value = '';
+  document.getElementById('pCategory').value = 'sdg12';
+  document.getElementById('pStatus').value = 'draft';
+  document.getElementById('pEffectiveDate').value = '';
+  document.getElementById('pVersion').value = '1.0';
+  document.getElementById('pContent').value = '';
+  document.getElementById('pEditTitle').textContent = 'New Policy';
+  document.getElementById('policyEditAlert').className = 'alert d-none';
+  document.getElementById('policyPlaceholder').classList.add('d-none');
+  document.getElementById('policyReadView').classList.add('d-none');
+  document.getElementById('policyEditView').classList.remove('d-none');
+}
+
+function openEditPolicy() {
+  if (!_currentPolicy) return;
+  const p = _currentPolicy;
+  document.getElementById('editPolicyId').value       = p.id;
+  document.getElementById('pTitle').value             = p.title;
+  document.getElementById('pCategory').value          = p.category;
+  document.getElementById('pStatus').value            = p.status;
+  document.getElementById('pEffectiveDate').value     = p.effective_date || '';
+  document.getElementById('pVersion').value           = p.version;
+  document.getElementById('pContent').value           = p.content;
+  document.getElementById('pEditTitle').textContent   = 'Edit Policy';
+  document.getElementById('policyEditAlert').className = 'alert d-none';
+  document.getElementById('policyReadView').classList.add('d-none');
+  document.getElementById('policyEditView').classList.remove('d-none');
+}
+
+function cancelEdit() {
+  document.getElementById('policyEditView').classList.add('d-none');
+  if (_currentPolicy) {
+    viewPolicy(_currentPolicy.id);
+  } else {
+    document.getElementById('policyPlaceholder').classList.remove('d-none');
+  }
+}
+
+async function savePolicy() {
+  const id = document.getElementById('editPolicyId').value;
+  const payload = {
+    title:          document.getElementById('pTitle').value.trim(),
+    category:       document.getElementById('pCategory').value,
+    status:         document.getElementById('pStatus').value,
+    effective_date: document.getElementById('pEffectiveDate').value || null,
+    version:        document.getElementById('pVersion').value.trim() || '1.0',
+    content:        document.getElementById('pContent').value.trim(),
+  };
+  if (!payload.title || !payload.content) {
+    showAlert('policyEditAlert', 'Title and content are required.');
+    return;
+  }
+  const url    = id ? `/api/policy/edit/${id}` : '/api/policy/add';
+  const method = id ? 'PUT' : 'POST';
+  const data   = await apiFetch(url, { method, body: JSON.stringify(payload) });
+  if (data && data.success) {
+    document.getElementById('policyEditView').classList.add('d-none');
+    await loadPolicies();
+    if (id) viewPolicy(parseInt(id));
+  } else {
+    showAlert('policyEditAlert', (data && data.message) || 'Save failed.');
+  }
+}
+
+async function deletePolicy() {
+  if (!_currentPolicy || !confirm(`Delete policy "${_currentPolicy.title}"?`)) return;
+  const data = await apiFetch(`/api/policy/delete/${_currentPolicy.id}`, { method: 'DELETE' });
+  if (data && data.success) {
+    _currentPolicy = null;
+    document.getElementById('policyReadView').classList.add('d-none');
+    document.getElementById('policyPlaceholder').classList.remove('d-none');
+    await loadPolicies();
+  }
+}
+</script>
+{% endblock %}

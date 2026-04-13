@@ -2,6 +2,8 @@
  * Report page logic
  */
 
+let currentReportId = null;
+
 document.addEventListener('DOMContentLoaded', function () {
     // Set default dates (last 30 days)
     const today = new Date();
@@ -41,6 +43,9 @@ async function loadReports() {
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" onclick="viewReport(${r.id})" title="View">
                         <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="viewReport(${r.id}, true)" title="AI Analysis">
+                        <i class="bi bi-stars"></i>
                     </button>
                     <button class="btn btn-outline-success" onclick="exportPdf(${r.id})" title="Export PDF">
                         <i class="bi bi-file-pdf"></i>
@@ -90,13 +95,55 @@ async function generateReport(e) {
     }
 }
 
-async function viewReport(id) {
+async function viewReport(id, triggerAi = false) {
     const data = await apiFetch(`/api/report/${id}`);
     if (!data || !data.success) return;
 
+    currentReportId = id;
     document.getElementById('reportContent').textContent = data.data.content || 'No content available.';
     document.getElementById('previewCard').classList.remove('d-none');
+
+    // Reset AI section
+    const aiSection = document.getElementById('aiCommentSection');
+    const aiContent = document.getElementById('aiCommentContent');
+    const aiBadge   = document.getElementById('aiMockBadge');
+    if (data.data.ai_comment) {
+        aiContent.textContent = data.data.ai_comment;
+        aiBadge.classList.toggle('d-none', !data.data.ai_comment.includes('Mock Mode'));
+        aiSection.classList.remove('d-none');
+    } else {
+        aiSection.classList.add('d-none');
+    }
+
     document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth' });
+    if (triggerAi && !data.data.ai_comment) {
+        generateAiComment();
+    }
+}
+
+async function generateAiComment() {
+    if (!currentReportId) return;
+    const btn = document.getElementById('aiCommentBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Analysing...';
+
+    const data = await apiFetch(`/api/report/${currentReportId}/ai-comment`, { method: 'POST' });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-stars me-1"></i>Re-generate AI Analysis';
+
+    if (!data || !data.success) {
+        alert('Failed to generate AI analysis.');
+        return;
+    }
+
+    const aiSection = document.getElementById('aiCommentSection');
+    const aiContent = document.getElementById('aiCommentContent');
+    const aiBadge   = document.getElementById('aiMockBadge');
+
+    aiContent.textContent = data.ai_comment;
+    aiBadge.classList.toggle('d-none', !data.is_mock);
+    aiSection.classList.remove('d-none');
 }
 
 function exportPdf(id) {

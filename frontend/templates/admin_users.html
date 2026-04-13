@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}User Management - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-people me-1"></i> User Management{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Stats row -->
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-primary" id="statTotal">—</div>
+                    <small class="text-muted">Total Users</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-success" id="statActive">—</div>
+                    <small class="text-muted">Active</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-warning" id="statManagers">—</div>
+                    <small class="text-muted">Managers</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-3 fw-bold text-secondary" id="statInactive">—</div>
+                    <small class="text-muted">Disabled</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Table -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-person-lines-fill me-1"></i> All Users</h6>
+                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openCreateModal()">
+                    <i class="bi bi-person-plus me-1"></i>Add User
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Role</th>
+                                <th>Scope</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <tr><td colspan="8" class="text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm me-2"></div>Loading...
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create / Edit Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">Add User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editUserId">
+                <div class="row g-3">
+                    <div class="col-12" id="usernameGroup">
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="fieldUsername" placeholder="e.g. john_doe">
+                    </div>
+                    <div class="col-12" id="passwordGroup">
+                        <label class="form-label" id="passwordLabel">Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="fieldPassword" placeholder="At least 6 characters">
+                        <div class="form-text" id="passwordHint"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-control" id="fieldDisplayName" placeholder="Full name">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="fieldEmail" placeholder="user@example.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Role <span class="text-danger">*</span></label>
+                        <select class="form-select" id="fieldRole" onchange="onRoleChange()">
+                            <option value="store_staff">Store Staff</option>
+                            <option value="region_manager">Region Manager</option>
+                            <option value="hq_manager">HQ Manager</option>
+                            <option value="admin">Platform Admin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="statusGroup" style="display:none">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="fieldActive">
+                            <option value="1">Active</option>
+                            <option value="0">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="col-12" id="regionGroup">
+                        <label class="form-label">Region</label>
+                        <select class="form-select" id="fieldRegion" onchange="filterStoreDropdown()">
+                            <option value="">— Select Region —</option>
+                        </select>
+                    </div>
+                    <div class="col-12" id="storeGroup">
+                        <label class="form-label">Store</label>
+                        <select class="form-select" id="fieldStore">
+                            <option value="">— Select Store —</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="userModalAlert" class="alert mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="saveUserBtn" onclick="saveUser()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPwModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reset Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">Resetting password for: <strong id="resetPwUsername"></strong></p>
+                <input type="hidden" id="resetPwUserId">
+                <label class="form-label">New Password</label>
+                <input type="password" class="form-control" id="resetPwInput" placeholder="At least 6 characters">
+                <div id="resetPwAlert" class="alert mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="doResetPassword()">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ROLE_BADGE = {
+    'admin':          '<span class="badge bg-danger">Admin</span>',
+    'hq_manager':     '<span class="badge bg-primary">HQ Manager</span>',
+    'region_manager': '<span class="badge bg-info text-dark">Region Mgr</span>',
+    'store_staff':    '<span class="badge bg-success">Store Staff</span>',
+};
+
+let allRegions = [];
+let allStores  = [];
+let isEditMode = false;
+
+async function loadDropdowns() {
+    const res  = await fetch('/api/admin/regions-stores');
+    const json = await res.json();
+    allRegions = json.regions || [];
+    allStores  = json.stores  || [];
+    const rSel = document.getElementById('fieldRegion');
+    allRegions.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id; opt.textContent = r.name;
+        rSel.appendChild(opt);
+    });
+    filterStoreDropdown();
+}
+
+function filterStoreDropdown() {
+    const regionId = parseInt(document.getElementById('fieldRegion').value) || null;
+    const sSel = document.getElementById('fieldStore');
+    const prev = parseInt(sSel.value) || null;
+    sSel.innerHTML = '<option value="">— Select Store —</option>';
+    allStores
+        .filter(s => !regionId || s.region_id === regionId)
+        .forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id; opt.textContent = s.name;
+            if (s.id === prev) opt.selected = true;
+            sSel.appendChild(opt);
+        });
+}
+
+function onRoleChange() {
+    const role = document.getElementById('fieldRole').value;
+    document.getElementById('regionGroup').style.display =
+        (role === 'region_manager' || role === 'store_staff') ? '' : 'none';
+    document.getElementById('storeGroup').style.display =
+        (role === 'store_staff') ? '' : 'none';
+}
+
+async function loadUsers() {
+    const res  = await fetch('/api/admin/users');
+    const json = await res.json();
+    if (!json.success) return;
+    renderUsers(json.data);
+    updateStats(json.data);
+}
+
+function updateStats(users) {
+    document.getElementById('statTotal').textContent    = users.length;
+    document.getElementById('statActive').textContent   = users.filter(u => u.is_active).length;
+    document.getElementById('statInactive').textContent = users.filter(u => !u.is_active).length;
+    document.getElementById('statManagers').textContent =
+        users.filter(u => u.role === 'hq_manager' || u.role === 'region_manager').length;
+}
+
+function renderUsers(users) {
+    const tbody = document.getElementById('userTableBody');
+    if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No users found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = users.map(u => {
+        const scope = u.store_name
+            ? `<small>${u.store_name}</small>`
+            : u.region_name
+                ? `<small>${u.region_name}</small>`
+                : u.company_name
+                    ? `<small class="text-muted">${u.company_name}</small>`
+                    : '—';
+        const status  = u.is_active
+            ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>'
+            : '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled</span>';
+        const lastLogin = u.last_login ? u.last_login.substring(0, 16) : '<span class="text-muted">Never</span>';
+        return `<tr>
+            <td class="fw-semibold small">${u.username}</td>
+            <td class="small">${u.display_name || '—'}</td>
+            <td>${ROLE_BADGE[u.role] || u.role}</td>
+            <td>${scope}</td>
+            <td class="small text-muted">${u.email || '—'}</td>
+            <td>${status}</td>
+            <td class="small text-muted">${lastLogin}</td>
+            <td>
+                <button class="btn btn-xs btn-outline-primary py-0 px-1 me-1"
+                        onclick="openEditModal(${JSON.stringify(u).replace(/"/g,'&quot;')})" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-warning py-0 px-1 me-1"
+                        onclick="openResetPw(${u.id},'${u.username}')" title="Reset Password">
+                    <i class="bi bi-key"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                        onclick="deleteUser(${u.id},'${u.username}')" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function openCreateModal() {
+    isEditMode = false;
+    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('editUserId').value    = '';
+    document.getElementById('fieldUsername').value = '';
+    document.getElementById('fieldPassword').value = '';
+    document.getElementById('fieldDisplayName').value = '';
+    document.getElementById('fieldEmail').value    = '';
+    document.getElementById('fieldRole').value     = 'store_staff';
+    document.getElementById('fieldActive').value   = '1';
+    document.getElementById('fieldRegion').value   = '';
+    document.getElementById('fieldStore').value    = '';
+    document.getElementById('usernameGroup').style.display = '';
+    document.getElementById('passwordGroup').style.display = '';
+    document.getElementById('passwordLabel').innerHTML = 'Password <span class="text-danger">*</span>';
+    document.getElementById('passwordHint').textContent = '';
+    document.getElementById('statusGroup').style.display = 'none';
+    document.getElementById('userModalAlert').classList.add('d-none');
+    onRoleChange();
+    filterStoreDropdown();
+}
+
+function openEditModal(u) {
+    isEditMode = true;
+    document.getElementById('userModalTitle').textContent = 'Edit User';
+    document.getElementById('editUserId').value       = u.id;
+    document.getElementById('fieldDisplayName').value = u.display_name || '';
+    document.getElementById('fieldEmail').value       = u.email || '';
+    document.getElementById('fieldRole').value        = u.role;
+    document.getElementById('fieldActive').value      = u.is_active ? '1' : '0';
+    document.getElementById('fieldRegion').value      = u.region_id || '';
+    document.getElementById('usernameGroup').style.display = 'none';
+    document.getElementById('passwordGroup').style.display = 'none';
+    document.getElementById('statusGroup').style.display   = '';
+    document.getElementById('userModalAlert').classList.add('d-none');
+    filterStoreDropdown();
+    document.getElementById('fieldStore').value = u.store_id || '';
+    onRoleChange();
+    new bootstrap.Modal(document.getElementById('userModal')).show();
+}
+
+async function saveUser() {
+    const alertEl = document.getElementById('userModalAlert');
+    alertEl.classList.add('d-none');
+
+    const payload = {
+        display_name: document.getElementById('fieldDisplayName').value,
+        email:        document.getElementById('fieldEmail').value,
+        role:         document.getElementById('fieldRole').value,
+        is_active:    parseInt(document.getElementById('fieldActive').value),
+        region_id:    parseInt(document.getElementById('fieldRegion').value) || null,
+        store_id:     parseInt(document.getElementById('fieldStore').value)  || null,
+    };
+
+    let url, method;
+    if (isEditMode) {
+        url    = `/api/admin/users/${document.getElementById('editUserId').value}`;
+        method = 'PUT';
+    } else {
+        payload.username = document.getElementById('fieldUsername').value.trim();
+        payload.password = document.getElementById('fieldPassword').value;
+        url    = '/api/admin/users';
+        method = 'POST';
+    }
+
+    const res  = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const json = await res.json();
+
+    if (!json.success) {
+        alertEl.className = 'alert alert-danger mt-3';
+        alertEl.textContent = json.message;
+        alertEl.classList.remove('d-none');
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+    loadUsers();
+}
+
+function openResetPw(uid, username) {
+    document.getElementById('resetPwUserId').value   = uid;
+    document.getElementById('resetPwUsername').textContent = username;
+    document.getElementById('resetPwInput').value    = '';
+    document.getElementById('resetPwAlert').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('resetPwModal')).show();
+}
+
+async function doResetPassword() {
+    const uid  = document.getElementById('resetPwUserId').value;
+    const pwd  = document.getElementById('resetPwInput').value;
+    const alertEl = document.getElementById('resetPwAlert');
+    alertEl.classList.add('d-none');
+
+    const res  = await fetch(`/api/admin/users/${uid}/reset-password`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ password: pwd })
+    });
+    const json = await res.json();
+
+    if (!json.success) {
+        alertEl.className = 'alert alert-danger mt-2';
+        alertEl.textContent = json.message;
+        alertEl.classList.remove('d-none');
+        return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('resetPwModal')).hide();
+}
+
+async function deleteUser(uid, username) {
+    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+    const res  = await fetch(`/api/admin/users/${uid}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (json.success) {
+        loadUsers();
+    } else {
+        alert(json.message);
+    }
+}
+
+loadDropdowns();
+loadUsers();
+</script>
+{% endblock %}

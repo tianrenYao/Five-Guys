@@ -95,12 +95,90 @@ async function loadRecords() {
             <td><small>${r.disposal_method || '-'}</small></td>
             <td><small class="text-muted">${r.recorded_by || '-'}</small></td>
             <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${r.id})" title="Delete">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditWaste(${r.id},'${r.record_date}',${r.weight_kg},${r.recycled_kg||0},'${r.note||''}')" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${r.id})" title="Delete/Withdraw">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function openEditWaste(id, date, weight, recycled, note) {
+    document.getElementById('editWasteId').value       = id;
+    document.getElementById('editWasteDate').value     = date;
+    document.getElementById('editWasteWeight').value   = weight;
+    document.getElementById('editWasteRecycled').value = recycled;
+    document.getElementById('editWasteNote').value     = note;
+    document.getElementById('editWasteAlert').className = 'alert d-none';
+    new bootstrap.Modal(document.getElementById('editWasteModal')).show();
+}
+
+async function saveEditWaste() {
+    const id = document.getElementById('editWasteId').value;
+    const payload = {
+        record_date:  document.getElementById('editWasteDate').value,
+        weight_kg:    parseFloat(document.getElementById('editWasteWeight').value),
+        recycled_kg:  parseFloat(document.getElementById('editWasteRecycled').value || 0),
+        note:         document.getElementById('editWasteNote').value
+    };
+    const data = await apiFetch(`/api/waste/edit/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+    });
+    if (data && data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('editWasteModal')).hide();
+        loadRecords(); loadStats();
+    } else {
+        showAlert('editWasteAlert', (data && data.message) || 'Update failed.');
+    }
+}
+
+async function showCompare() {
+    const modal = new bootstrap.Modal(document.getElementById('compareModal'));
+    document.getElementById('compareBody').innerHTML =
+        '<div class="text-center py-4"><div class="spinner-border"></div></div>';
+    modal.show();
+
+    const storeEl = document.getElementById('filterStore');
+    const storeId = storeEl ? storeEl.value : '';
+    const url = '/api/waste/compare' + (storeId ? `?store_id=${storeId}` : '');
+    const data = await apiFetch(url);
+    if (!data || !data.success) {
+        document.getElementById('compareBody').innerHTML = '<p class="text-muted text-center">No comparison data available.</p>';
+        return;
+    }
+    const d = data.data;
+    const momBadge = d.mom_pct === null ? '<span class="text-muted">N/A</span>'
+        : d.mom_pct > 0
+            ? `<span class="text-danger">▲ ${d.mom_pct}%</span>`
+            : `<span class="text-success">▼ ${Math.abs(d.mom_pct)}%</span>`;
+    document.getElementById('compareBody').innerHTML = `
+        <div class="row g-3 text-center">
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">This Month</div>
+                    <div class="fs-3 fw-bold text-dark">${d.this_month.toLocaleString()} <small class="fs-6 text-muted">kg</small></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">Last Month</div>
+                    <div class="fs-3 fw-bold text-dark">${d.last_month.toLocaleString()} <small class="fs-6 text-muted">kg</small></div>
+                    <div class="mt-1">${momBadge} MoM</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light p-3 h-100">
+                    <div class="text-muted small mb-1">Region Avg (This Month)</div>
+                    <div class="fs-3 fw-bold text-dark">${d.region_avg !== null ? d.region_avg.toLocaleString() : '—'} <small class="fs-6 text-muted">kg</small></div>
+                    ${d.region_avg !== null ? `<div class="mt-1 small ${d.this_month > d.region_avg ? 'text-danger' : 'text-success'}">
+                        ${d.this_month > d.region_avg ? '▲ Above' : '▼ Below'} regional average</div>` : ''}
+                </div>
+            </div>
+        </div>`;
 }
 
 async function addRecord(e) {
@@ -189,4 +267,12 @@ async function loadStats() {
         ]
     });
     window.addEventListener('resize', () => chart.resize());
+}
+
+function exportCSV() {
+    const store  = document.getElementById('filterStore')?.value || '';
+    const from   = document.getElementById('filterFrom')?.value  || '';
+    const to     = document.getElementById('filterTo')?.value    || '';
+    const params = new URLSearchParams({ store_id: store, date_from: from, date_to: to });
+    window.location.href = '/api/waste/export-csv?' + params;
 }

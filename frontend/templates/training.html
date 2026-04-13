@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}Training Records - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-mortarboard me-1"></i> Employee Sustainability Training{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Log Training Form -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i> Log Training</h6>
+            </div>
+            <div class="card-body">
+                <form id="trainingForm">
+                    <div class="mb-3">
+                        <label class="form-label">Course Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="fCourseName" placeholder="e.g. Carbon Footprint Basics" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Course Type</label>
+                        <select class="form-select" id="fCourseType">
+                            <option value="carbon_awareness">Carbon Awareness</option>
+                            <option value="waste_management">Waste Management</option>
+                            <option value="energy_efficiency">Energy Efficiency</option>
+                            <option value="sustainability_reporting">Sustainability Reporting</option>
+                            <option value="green_procurement">Green Procurement</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Store</label>
+                        <select class="form-select" id="fStore">
+                            <option value="">— Select Store —</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Trainee</label>
+                        <select class="form-select" id="fTrainee">
+                            <option value="">— Select Staff —</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label class="form-label">Duration (hrs)</label>
+                            <input type="number" class="form-control" id="fDuration" min="0.5" step="0.5" value="2">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Score (0-100)</label>
+                            <input type="number" class="form-control" id="fScore" min="0" max="100" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Completion Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="fDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="fStatus">
+                            <option value="completed">Completed</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" id="fNote" rows="2" placeholder="Optional remarks"></textarea>
+                    </div>
+                    <div id="trainingAlert" class="alert d-none mb-3"></div>
+                    <button type="submit" class="btn btn-success w-100" id="submitBtn">
+                        <i class="bi bi-check2-circle me-1"></i>Log Training
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats + Table -->
+    <div class="col-lg-8">
+        <!-- Stats Cards -->
+        <div class="row g-3 mb-4" id="statsRow">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-4 fw-bold text-success" id="statSessions">—</div>
+                    <small class="text-muted">Sessions (Year)</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-4 fw-bold text-primary" id="statHours">—</div>
+                    <small class="text-muted">Total Hours</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-4 fw-bold text-info" id="statTrainees">—</div>
+                    <small class="text-muted">Unique Trainees</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-3">
+                    <div class="fs-4 fw-bold text-warning" id="statAvgScore">—</div>
+                    <small class="text-muted">Avg Score</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters + Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <h6 class="mb-0 me-auto"><i class="bi bi-list-check me-1"></i> Training Records</h6>
+                    <select class="form-select form-select-sm" id="filterType" style="width:160px;" onchange="loadRecords()">
+                        <option value="">All Types</option>
+                        <option value="carbon_awareness">Carbon Awareness</option>
+                        <option value="waste_management">Waste Management</option>
+                        <option value="energy_efficiency">Energy Efficiency</option>
+                        <option value="sustainability_reporting">Sustainability Reporting</option>
+                        <option value="green_procurement">Green Procurement</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="filterStatus" style="width:130px;" onchange="loadRecords()">
+                        <option value="">All Status</option>
+                        <option value="completed">Completed</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Course</th>
+                                <th>Type</th>
+                                <th>Store</th>
+                                <th>Trainee</th>
+                                <th>Hrs</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="trainingBody">
+                            <tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TYPE_LABEL = {
+    carbon_awareness: 'Carbon Awareness',
+    waste_management: 'Waste Management',
+    energy_efficiency: 'Energy Efficiency',
+    sustainability_reporting: 'Sustainability Reporting',
+    green_procurement: 'Green Procurement',
+    other: 'Other'
+};
+const TYPE_COLOR = {
+    carbon_awareness: 'bg-danger',
+    waste_management: 'bg-success',
+    energy_efficiency: 'bg-warning text-dark',
+    sustainability_reporting: 'bg-primary',
+    green_procurement: 'bg-info text-dark',
+    other: 'bg-secondary'
+};
+const STATUS_BADGE = {
+    completed: '<span class="badge bg-success">Completed</span>',
+    in_progress: '<span class="badge bg-info text-dark">In Progress</span>',
+    cancelled: '<span class="badge bg-secondary">Cancelled</span>'
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().substring(0, 10);
+    document.getElementById('fDate').value = today;
+    loadStores();
+    loadStats();
+    loadRecords();
+    document.getElementById('trainingForm').addEventListener('submit', submitTraining);
+});
+
+async function loadStores() {
+    const data = await apiFetch('/api/dashboard/accessible-stores');
+    if (!data || !data.success) return;
+    const sel = document.getElementById('fStore');
+    data.data.forEach(s => {
+        sel.insertAdjacentHTML('beforeend', `<option value="${s.id}">${s.name}</option>`);
+    });
+    sel.addEventListener('change', loadStoreStaff);
+}
+
+async function loadStoreStaff() {
+    const storeId = document.getElementById('fStore').value;
+    const sel = document.getElementById('fTrainee');
+    sel.innerHTML = '<option value="">— Select Staff —</option>';
+    if (!storeId) return;
+    const data = await apiFetch(`/api/admin/users?store_id=${storeId}`);
+    if (!data || !data.success) return;
+    data.data.forEach(u => {
+        sel.insertAdjacentHTML('beforeend', `<option value="${u.id}">${u.display_name} (${u.role})</option>`);
+    });
+}
+
+async function loadStats() {
+    const data = await apiFetch('/api/training/stats');
+    if (!data || !data.success) return;
+    const d = data.data;
+    document.getElementById('statSessions').textContent  = d.total_sessions;
+    document.getElementById('statHours').textContent     = d.total_hours.toFixed(1);
+    document.getElementById('statTrainees').textContent  = d.unique_trainees;
+    document.getElementById('statAvgScore').textContent  = d.avg_score > 0 ? d.avg_score.toFixed(1) : '—';
+}
+
+async function loadRecords() {
+    const type   = document.getElementById('filterType').value;
+    const status = document.getElementById('filterStatus').value;
+    const params = new URLSearchParams();
+    if (type)   params.append('course_type', type);
+    if (status) params.append('status', status);
+
+    const data = await apiFetch('/api/training/list?' + params);
+    if (!data || !data.success) return;
+
+    const tbody = document.getElementById('trainingBody');
+    if (!data.data.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No training records yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.data.map(r => `
+        <tr>
+            <td><small class="text-muted">${r.completion_date || '—'}</small></td>
+            <td><strong>${r.course_name}</strong></td>
+            <td><span class="badge ${TYPE_COLOR[r.course_type] || 'bg-secondary'} small">${TYPE_LABEL[r.course_type] || r.course_type}</span></td>
+            <td><small>${r.store_name || '—'}</small></td>
+            <td><small>${r.trainee_name || '—'}</small></td>
+            <td class="small">${r.duration_hours}</td>
+            <td class="small">${r.score !== null && r.score !== undefined ? r.score + '/100' : '—'}</td>
+            <td>${STATUS_BADGE[r.status] || r.status}</td>
+            <td>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${r.id})" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function submitTraining(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+    const score = document.getElementById('fScore').value;
+    const payload = {
+        course_name:      document.getElementById('fCourseName').value.trim(),
+        course_type:      document.getElementById('fCourseType').value,
+        store_id:         document.getElementById('fStore').value || null,
+        trainee_user_id:  document.getElementById('fTrainee').value || null,
+        duration_hours:   parseFloat(document.getElementById('fDuration').value) || 0,
+        score:            score ? parseInt(score) : null,
+        completion_date:  document.getElementById('fDate').value,
+        status:           document.getElementById('fStatus').value,
+        note:             document.getElementById('fNote').value.trim()
+    };
+
+    const data = await apiFetch('/api/training/create', {
+        method: 'POST', body: JSON.stringify(payload)
+    });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Log Training';
+
+    if (data && data.success) {
+        showAlert('trainingAlert', 'Training record logged successfully!', 'success');
+        document.getElementById('trainingForm').reset();
+        document.getElementById('fDate').value = new Date().toISOString().substring(0, 10);
+        loadStats();
+        loadRecords();
+    } else {
+        showAlert('trainingAlert', (data && data.message) || 'Failed to save record');
+    }
+}
+
+async function deleteRecord(id) {
+    if (!confirm('Delete this training record?')) return;
+    const data = await apiFetch(`/api/training/${id}`, { method: 'DELETE' });
+    if (data && data.success) { loadStats(); loadRecords(); }
+    else alert((data && data.message) || 'Delete failed');
+}
+</script>
+{% endblock %}

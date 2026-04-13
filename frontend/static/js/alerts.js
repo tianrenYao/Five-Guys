@@ -103,6 +103,9 @@ async function loadThresholds() {
                     ? '<span class="badge bg-success">Active</span>'
                     : '<span class="badge bg-secondary">Disabled</span>'}
             </td>
+            <td><small class="text-muted">${t.notify_email
+                ? `<i class="bi bi-envelope-check text-success me-1"></i>${t.notify_email}`
+                : '<span class="text-muted">—</span>'}</small></td>
             <td><small class="text-muted">${t.created_by_name || '-'}</small></td>
             <td>
                 <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleThreshold(${t.id}, ${t.is_active})" title="${t.is_active ? 'Disable' : 'Enable'}">
@@ -121,7 +124,8 @@ async function saveThreshold() {
         metric_type:     document.getElementById('metric_type').value,
         comparison:      document.getElementById('comparison').value,
         threshold_value: parseFloat(document.getElementById('threshold_value').value),
-        scope:           document.getElementById('scope').value
+        scope:           document.getElementById('scope').value,
+        notify_email:    (document.getElementById('notify_email').value || '').trim()
     };
 
     if (!payload.threshold_value) {

@@ -1,5 +1,6 @@
 import os
 import io
+import json
 from datetime import datetime
 from flask import Blueprint, request, session, render_template, jsonify, send_file
 from backend.utils.db import query_db, execute_db, insert_db
@@ -196,6 +197,34 @@ def report_export_pdf(report_id):
         r['total_kg']    = float(r['total_kg']    or 0)
         r['recycled_kg'] = float(r['recycled_kg'] or 0)
 
+    # SDG 12: Responsible Consumption & Production — 4 sub-indicators
+    # 12.5  Waste recovery rate (target: 60 %)
+    sdg12_recovery = min(int(round(recovery_rate)), 100)
+    # 12.2  Sustainable production: carbon efficiency (lower carbon/store = better)
+    carbon_per_store = total_carbon / max(store_count['cnt'] if store_count else 1, 1)
+    sdg12_carbon = max(0, min(100, int(round(100 - carbon_per_store / 50))))
+    # 12.6  Reporting coverage: reports filed this year (target ≥ 4)
+    reports_year = query_db(
+        'SELECT COUNT(*) AS cnt FROM report WHERE company_id = %s AND YEAR(created_at) = YEAR(CURDATE())',
+        (company_id,), one=True
+    )
+    sdg12_reporting = min(int((reports_year['cnt'] if reports_year else 0) / 4 * 100), 100)
+    # 12.3  Waste data completeness (stores with waste data / total stores)
+    total_stores = query_db(
+        'SELECT COUNT(*) AS cnt FROM store WHERE company_id = %s', (company_id,), one=True
+    )
+    covered = store_count['cnt'] if store_count else 0
+    total_s = total_stores['cnt'] if total_stores else 1
+    sdg12_coverage = min(int(round(covered / max(total_s, 1) * 100)), 100)
+
+    sdg_scores = {
+        'sdg12_recovery':   sdg12_recovery,  'sdg12_recovery_bar':   f'width:{sdg12_recovery}%',
+        'sdg12_carbon':     sdg12_carbon,    'sdg12_carbon_bar':     f'width:{sdg12_carbon}%',
+        'sdg12_reporting':  sdg12_reporting, 'sdg12_reporting_bar':  f'width:{sdg12_reporting}%',
+        'sdg12_coverage':   sdg12_coverage,  'sdg12_coverage_bar':   f'width:{sdg12_coverage}%',
+        'overall':          int((sdg12_recovery + sdg12_carbon + sdg12_reporting + sdg12_coverage) / 4),
+    }
+
     # Render HTML template
     templates_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -212,7 +241,8 @@ def report_export_pdf(report_id):
         total_recycled=total_recycled,
         recovery_rate=recovery_rate,
         store_count=store_count['cnt'] if store_count else 0,
-        generated_at=datetime.now().strftime('%Y-%m-%d %H:%M')
+        generated_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
+        sdg_scores=sdg_scores
     )
 
     # Convert to PDF
@@ -237,6 +267,113 @@ def report_export_pdf(report_id):
         as_attachment=True,
         download_name=f'{report["title"]}.pdf'
     )
+
+
+@report_bp.route('/api/report/<int:report_id>/ai-comment', methods=['POST'])
+@login_required
+@role_required('hq_manager', 'admin')
+def report_ai_comment(report_id):
+    """Generate an AI comment for the report using DeepSeek API (with mock fallback)."""
+    report = query_db(
+        'SELECT * FROM report WHERE id = %s AND company_id = %s',
+        (report_id, session['company_id']), one=True
+    )
+    if not report:
+        return jsonify({'success': False, 'message': 'Report not found'}), 404
+
+    content = report.get('content', '') or ''
+
+    # Try DeepSeek API first
+    api_key = os.getenv('DEEPSEEK_API_KEY', '')
+    ai_comment = None
+    is_mock = False
+
+    if api_key:
+        try:
+            import urllib.request
+            prompt = (
+                'You are a professional ESG sustainability analyst. '
+                'Read the following sustainability report and provide a concise analysis in English '
+                '(around 150-200 words) covering: '
+                '1) Key achievements in carbon reduction and waste management, '
+                '2) Areas of concern or risk, '
+                '3) Specific actionable recommendations for improvement, '
+                '4) Overall ESG performance rating (Excellent / Good / Needs Improvement).\n\n'
+                f'Report Content:\n{content[:3000]}'
+            )
+            payload = json.dumps({
+                'model': 'deepseek-chat',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 400,
+                'temperature': 0.7
+            }).encode('utf-8')
+            req = urllib.request.Request(
+                'https://api.deepseek.com/v1/chat/completions',
+                data=payload,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {api_key}'
+                },
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+                ai_comment = result['choices'][0]['message']['content'].strip()
+        except Exception:
+            ai_comment = None
+
+    if not ai_comment:
+        is_mock = True
+        total_carbon = 0
+        recovery_rate = 0
+        for line in content.split('\n'):
+            if 'Total Carbon Emissions:' in line:
+                try:
+                    total_carbon = float(line.split(':')[1].strip().split()[0])
+                except Exception:
+                    pass
+            if 'Recycling Rate:' in line:
+                try:
+                    recovery_rate = float(line.split(':')[1].strip().replace('%', ''))
+                except Exception:
+                    pass
+
+        carbon_eval = 'within acceptable range' if total_carbon < 5000 else 'elevated and requires attention'
+        recycle_eval = 'commendable' if recovery_rate >= 60 else 'below the recommended 60% target'
+        rating = 'Good' if (total_carbon < 5000 and recovery_rate >= 60) else 'Needs Improvement'
+
+        ai_comment = (
+            f'**AI ESG Analysis (Mock Mode)**\n\n'
+            f'**Carbon Performance:** Total emissions of {total_carbon:.1f} kgCO2e are {carbon_eval}. '
+            f'The company should continue monitoring energy consumption across all store locations '
+            f'and explore renewable energy sourcing options to reduce Scope 2 emissions.\n\n'
+            f'**Waste Management:** The recycling rate of {recovery_rate:.1f}% is {recycle_eval}. '
+            f'Strengthening recycling programmes, particularly for food residue and packaging materials, '
+            f'would contribute significantly to SDG 12 targets.\n\n'
+            f'**Recommendations:** '
+            f'(1) Implement monthly carbon benchmarking per store. '
+            f'(2) Set quarterly waste reduction targets. '
+            f'(3) Train store staff on sustainable disposal practices.\n\n'
+            f'**Overall Rating: {rating}**'
+        )
+
+    execute_db(
+        'UPDATE report SET ai_comment = %s WHERE id = %s',
+        (ai_comment, report_id)
+    )
+
+    execute_db(
+        'INSERT INTO audit_log (user_id, action, target_type, target_id, detail, ip_address) '
+        'VALUES (%s, %s, %s, %s, %s, %s)',
+        (session['user_id'], 'UPDATE', 'report', report_id,
+         f'Generated AI comment for report #{report_id}', request.remote_addr)
+    )
+
+    return jsonify({
+        'success': True,
+        'ai_comment': ai_comment,
+        'is_mock': is_mock
+    })
 
 
 @report_bp.route('/api/report/<int:report_id>/delete', methods=['DELETE'])
@@ -302,12 +439,13 @@ def _build_report_content(title, date_from, date_to, carbon_data, waste_data,
 
     lines.extend([
         '',
-        '--- SDG ALIGNMENT ---',
-        'This report contributes to the following UN Sustainable Development Goals:',
-        '  - SDG 9: Industry, Innovation and Infrastructure',
-        '  - SDG 11: Sustainable Cities and Communities',
-        '  - SDG 12: Responsible Consumption and Production',
-        '  - SDG 13: Climate Action',
+        '--- SDG 12 ALIGNMENT ---',
+        'This platform is aligned with UN SDG 12: Responsible Consumption and Production.',
+        'Key targets addressed:',
+        '  - 12.2: Sustainable management and efficient use of natural resources',
+        '  - 12.3: Reduce food waste and losses along supply chain',
+        '  - 12.5: Reduce waste generation through recycling and recovery',
+        '  - 12.6: Encourage companies to adopt sustainable practices and reporting',
         '',
         '--- END OF REPORT ---',
     ])

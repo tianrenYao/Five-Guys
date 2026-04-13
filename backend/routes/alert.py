@@ -22,7 +22,7 @@ def threshold_list():
     """List all alert thresholds for the current company."""
     rows = query_db(
         'SELECT t.id, t.metric_type, t.scope, t.scope_id, '
-        't.threshold_value, t.comparison, t.is_active, t.created_at, '
+        't.threshold_value, t.comparison, t.is_active, t.notify_email, t.created_at, '
         'u.display_name AS created_by_name '
         'FROM alert_threshold t '
         'LEFT JOIN `user` u ON u.id = t.created_by '
@@ -60,12 +60,14 @@ def threshold_create():
     if threshold_value is None:
         return jsonify({'success': False, 'message': 'threshold_value is required'}), 400
 
+    notify_email = data.get('notify_email', '').strip()
+
     new_id = insert_db(
         'INSERT INTO alert_threshold '
-        '(company_id, metric_type, scope, scope_id, threshold_value, comparison, created_by) '
-        'VALUES (%s, %s, %s, %s, %s, %s, %s)',
+        '(company_id, metric_type, scope, scope_id, threshold_value, comparison, notify_email, created_by) '
+        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
         (session['company_id'], metric_type, scope, scope_id,
-         float(threshold_value), comparison, session['user_id'])
+         float(threshold_value), comparison, notify_email or None, session['user_id'])
     )
     return jsonify({'success': True, 'message': 'Threshold created', 'data': {'id': new_id}}), 201
 
@@ -84,7 +86,7 @@ def threshold_update(threshold_id):
 
     data = request.get_json() or {}
     fields, params = [], []
-    for col in ('threshold_value', 'comparison', 'is_active', 'scope', 'scope_id'):
+    for col in ('threshold_value', 'comparison', 'is_active', 'scope', 'scope_id', 'notify_email'):
         if col in data:
             fields.append(f'{col} = %s')
             params.append(data[col])

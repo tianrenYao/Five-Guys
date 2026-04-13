@@ -89,6 +89,15 @@
                         <button class="btn btn-sm btn-outline-success" onclick="loadRecords()">
                             <i class="bi bi-funnel"></i> Filter
                         </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="exportCSV()">
+                            <i class="bi bi-download me-1"></i>Export CSV
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+                            <i class="bi bi-upload me-1"></i>Import
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="showCompare()">
+                            <i class="bi bi-bar-chart-steps me-1"></i>Compare
+                        </button>
                     </div>
                 </div>
             </div>
@@ -116,8 +125,107 @@
         </div>
     </div>
 </div>
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-upload me-1"></i>Batch Import Carbon Records</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Upload a CSV or Excel file. Required columns: <code>store_name, sub_type, activity_value, record_date</code>.</p>
+                <a href="/api/carbon/import-template" class="btn btn-sm btn-outline-secondary mb-3">
+                    <i class="bi bi-file-earmark-arrow-down me-1"></i>Download Template
+                </a>
+                <input type="file" class="form-control" id="importFileCarbon" accept=".csv,.xlsx,.xls">
+                <div id="importResultCarbon" class="mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="doImportCarbon()">
+                    <i class="bi bi-upload me-1"></i>Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Edit Record Modal -->
+<div class="modal fade" id="editCarbonModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-1"></i>Edit Carbon Record</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCarbonId">
+        <div class="mb-3">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control" id="editCarbonDate">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Activity Value</label>
+          <input type="number" class="form-control" id="editCarbonActivity" step="0.01">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Note</label>
+          <input type="text" class="form-control" id="editCarbonNote">
+        </div>
+        <div id="editCarbonAlert" class="alert d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveEditCarbon()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Compare Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bar-chart-steps me-1"></i>Carbon Data Comparison</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="compareBody">
+        <div class="text-center text-muted py-4"><div class="spinner-border"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/carbon.js') }}"></script>
+<script>
+async function doImportCarbon() {
+    const fileInput = document.getElementById('importFileCarbon');
+    const resultEl  = document.getElementById('importResultCarbon');
+    if (!fileInput.files.length) { alert('Please select a file.'); return; }
+    const form = new FormData();
+    form.append('file', fileInput.files[0]);
+    resultEl.className = 'mt-3';
+    resultEl.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Uploading...';
+    try {
+        const res  = await fetch('/api/carbon/import', { method: 'POST', body: form });
+        const json = await res.json();
+        if (json.success) {
+            let html = `<div class="alert alert-success"><strong>${json.imported} records imported</strong> (${json.total_rows} rows total)</div>`;
+            if (json.errors.length) {
+                html += '<div class="alert alert-warning small"><strong>Errors:</strong><ul>' +
+                    json.errors.map(e => `<li>${e}</li>`).join('') + '</ul></div>';
+            }
+            resultEl.innerHTML = html;
+            loadRecords();
+        } else {
+            resultEl.innerHTML = `<div class="alert alert-danger">${json.message}</div>`;
+        }
+    } catch(e) {
+        resultEl.innerHTML = '<div class="alert alert-danger">Upload failed.</div>';
+    }
+}
+</script>
 {% endblock %}

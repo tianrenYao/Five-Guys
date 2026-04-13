@@ -352,10 +352,8 @@ INSERT INTO `user` (id, company_id, region_id, store_id, username, password, dis
 
 -- SDG goal reference data
 INSERT INTO sdg_goal (id, name, description) VALUES
-(9,  'Industry, Innovation and Infrastructure', 'Build resilient infrastructure, promote inclusive and sustainable industrialisation'),
-(11, 'Sustainable Cities and Communities',      'Make cities and human settlements inclusive, safe, resilient and sustainable'),
-(12, 'Responsible Consumption and Production',  'Ensure sustainable consumption and production patterns'),
-(13, 'Climate Action',                          'Take urgent action to combat climate change and its impacts');
+(12, 'Responsible Consumption and Production',
+     'Ensure sustainable consumption and production patterns across the full product lifecycle — from raw material sourcing, in-store consumption, to waste recovery and recycling.');
 
 -- Waste categories (Luckin Coffee scenario)
 INSERT INTO waste_category (name, is_recyclable) VALUES
