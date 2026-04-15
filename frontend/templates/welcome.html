@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Welcome - Sustainability Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-page {
+        min-height: 100vh;
+        color: #fff;
+    }
+
+    .welcome-topbar {
+        padding: 1rem 0;
+        border-bottom: 1px solid #e8ecf7;
+        background: #fff;
+    }
+
+    .welcome-logo {
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        color: #003CA6;
+        text-decoration: none;
+    }
+
+    .welcome-login-btn {
+        border: 1px solid #003CA6;
+        color: #003CA6;
+        background: #fff;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.45rem 1rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .welcome-login-btn:hover {
+        background: #003CA6;
+        color: #fff;
+    }
+
+    .welcome-hero {
+        min-height: calc(100vh - 78px);
+        display: flex;
+        align-items: center;
+        background-image: url('/brand/luckin-hero');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    .welcome-content {
+        transform: translate(-48px, -36px);
+    }
+
+    .welcome-eyebrow {
+        display: inline-block;
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.88);
+        margin-bottom: 0.8rem;
+    }
+
+    .welcome-title {
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 1rem;
+    font-size: clamp(1.8rem, 4.2vw, 3.2rem);
+    }
+
+    .reveal-line {
+        display: block;
+        opacity: 0;
+        transform: translateY(16px);
+        animation: fadeUp 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+    }
+
+    .welcome-title .reveal-line:nth-child(1) { animation-delay: 0.12s; }
+    .welcome-title .reveal-line:nth-child(2) { animation-delay: 0.32s; }
+    .welcome-title .reveal-line:nth-child(3) { animation-delay: 0.52s; }
+
+    .welcome-desc {
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 0;
+        max-width: 680px;
+    font-size: 1rem;
+        line-height: 1.7;
+    }
+
+    .welcome-desc .reveal-line:nth-child(1) { animation-delay: 0.82s; }
+    .welcome-desc .reveal-line:nth-child(2) { animation-delay: 1.02s; }
+
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .reveal-line {
+            opacity: 1;
+            transform: none;
+            animation: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .welcome-hero {
+            background-position: 65% center;
+        }
+        .welcome-content {
+            transform: translate(0, -18px);
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block content_nosidebar %}
+<div class="welcome-page">
+    <header class="welcome-topbar">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="/welcome" class="welcome-logo">SustainPlatform</a>
+            <a href="/login" class="welcome-login-btn">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Login
+            </a>
+        </div>
+    </header>
+
+    <main class="welcome-hero">
+        <div class="container">
+            <section class="welcome-content">
+                <span class="welcome-eyebrow">ESG Management Platform</span>
+                <h1 class="welcome-title">
+                    <span class="reveal-line">Track in real time</span>
+                    <span class="reveal-line">Reduce with intelligence</span>
+                    <span class="reveal-line">Scale sustainably</span>
+                </h1>
+                <p class="welcome-desc">
+                    <span class="reveal-line">A Smart Sustainability Management Platform.</span>
+                    <span class="reveal-line">Track carbon emissions, manage waste streams, and generate automated ESG reports.</span>
+                    <span class="reveal-line">—Designed for modern, growing businesses.</span>
+                </p>
+            </section>
+        </div>
+    </main>
+</div>
+{% endblock %}
