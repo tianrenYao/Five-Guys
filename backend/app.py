@@ -61,12 +61,12 @@ def create_app():
     @app.route('/')
     def index():
         from flask import redirect, url_for
-        return redirect(url_for('auth.login_page'))
+        return redirect(url_for('auth.welcome_page'))
 
     return app
 
 
 if __name__ == '__main__':
     app = create_app()
-    port = int(os.getenv('FLASK_PORT', 5000))
+    port = int(os.getenv('FLASK_PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'])
