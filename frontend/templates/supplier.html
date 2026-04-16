@@ -1,48 +1,174 @@
 {% extends "base.html" %}
-{% block title %}Supplier ESG — Sustainability Platform{% endblock %}
-{% block page_title %}<i class="bi bi-building-check me-1"></i> Supplier ESG Assessment{% endblock %}
+{% block title %}ESG Management — Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-building-check me-1"></i> ESG Management{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <!-- Summary Cards -->
-  <div class="col-12" id="supplierSummary"></div>
-
-  <!-- Table -->
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="bi bi-table me-1"></i> Supplier ESG Scores</h6>
-        {% if session.get('role') in ('hq_manager','admin') %}
-        <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
-          <i class="bi bi-plus-lg me-1"></i>Add Supplier
+<div id="esgManagementRoot" data-is-manager="{{ 'true' if session.get('role') in ('hq_manager','admin') else 'false' }}">
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body pb-0">
+    <ul class="nav nav-tabs" id="esgManagementTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-pane" type="button" role="tab" aria-controls="supplier-pane" aria-selected="true">
+          <i class="bi bi-building-check me-1"></i>Supplier ESG
         </button>
-        {% endif %}
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="policies-tab" data-bs-toggle="tab" data-bs-target="#policies-pane" type="button" role="tab" aria-controls="policies-pane" aria-selected="false">
+          <i class="bi bi-file-earmark-text me-1"></i>Company Policies
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="tab-content">
+    <div class="tab-pane fade show active p-4" id="supplier-pane" role="tabpanel" aria-labelledby="supplier-tab" tabindex="0">
+      <div class="row g-4">
+        <!-- Summary Cards -->
+        <div class="col-12" id="supplierSummary"></div>
+
+        <!-- Table -->
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-table me-1"></i> Supplier ESG Scores</h6>
+              {% if session.get('role') in ('hq_manager','admin') %}
+              <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addSupplierModal" onclick="prepareNewSupplier()">
+                <i class="bi bi-plus-lg me-1"></i>Add Supplier
+              </button>
+              {% endif %}
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Supplier</th>
+                      <th>Category</th>
+                      <th>Country</th>
+                      <th>Carbon</th>
+                      <th>Waste</th>
+                      <th>Ethics</th>
+                      <th>Reporting</th>
+                      <th>Grade</th>
+                      <th>Notes</th>
+                      {% if session.get('role') in ('hq_manager','admin') %}<th></th>{% endif %}
+                    </tr>
+                  </thead>
+                  <tbody id="supplierBody">
+                    <tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Supplier</th>
-                <th>Category</th>
-                <th>Country</th>
-                <th>Carbon</th>
-                <th>Waste</th>
-                <th>Ethics</th>
-                <th>Reporting</th>
-                <th>Grade</th>
-                <th>Notes</th>
-                {% if session.get('role') in ('hq_manager','admin') %}<th></th>{% endif %}
-              </tr>
-            </thead>
-            <tbody id="supplierBody">
-              <tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr>
-            </tbody>
-          </table>
+    </div>
+    <div class="tab-pane fade p-4" id="policies-pane" role="tabpanel" aria-labelledby="policies-tab" tabindex="0">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-list-ul me-1"></i> Policies</h6>
+              {% if session.get('role') in ('hq_manager','admin') %}
+              <button class="btn btn-sm btn-outline-success" onclick="openNewPolicy()">
+                <i class="bi bi-plus-lg me-1"></i>New
+              </button>
+              {% endif %}
+            </div>
+            <div class="card-body p-0">
+              <div id="policyList" class="list-group list-group-flush">
+                <div class="text-center text-muted py-4">Loading…</div>
+              </div>
+              <div id="mockBadge" class="d-none">
+                <div class="alert alert-info m-2 py-2 small"><i class="bi bi-info-circle me-1"></i>Showing mock data — run migration SQL to activate live data.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card border-0 shadow-sm h-100" id="policyDetailCard">
+            <div class="card-body d-flex align-items-center justify-content-center text-muted" id="policyPlaceholder">
+              <div class="text-center">
+                <i class="bi bi-file-earmark-text display-4 mb-3"></i>
+                <p>Select a policy from the list to view its content.</p>
+              </div>
+            </div>
+            <div class="d-none" id="policyReadView">
+              <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h5 class="mb-1" id="pDetailTitle"></h5>
+                    <span class="badge" id="pDetailCatBadge"></span>
+                    <span class="badge bg-secondary ms-1" id="pDetailStatus"></span>
+                    <span class="text-muted small ms-2" id="pDetailVersion"></span>
+                  </div>
+                  {% if session.get('role') in ('hq_manager','admin') %}
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="openEditPolicy()"><i class="bi bi-pencil me-1"></i>Edit</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deletePolicy()"><i class="bi bi-trash"></i></button>
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="text-muted small mt-1">Effective: <span id="pDetailDate"></span> &nbsp;|&nbsp; By: <span id="pDetailAuthor"></span></div>
+              </div>
+              <div class="card-body" id="pDetailContent" style="white-space:pre-wrap;font-size:0.9rem;"></div>
+            </div>
+            <div class="d-none" id="policyEditView">
+              <div class="card-header bg-white">
+                <h6 class="mb-0" id="pEditTitle">New Policy</h6>
+              </div>
+              <div class="card-body">
+                <input type="hidden" id="editPolicyId">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Title *</label>
+                    <input type="text" class="form-control" id="pTitle" placeholder="Policy title">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="pCategory">
+                      <option value="sdg12">SDG 12</option>
+                      <option value="environment">Environment</option>
+                      <option value="social">Social</option>
+                      <option value="governance">Governance</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="pStatus">
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Effective Date</label>
+                    <input type="date" class="form-control" id="pEffectiveDate">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Version</label>
+                    <input type="text" class="form-control" id="pVersion" placeholder="1.0">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Content *</label>
+                    <textarea class="form-control font-monospace" id="pContent" rows="14" placeholder="Write policy content here (Markdown supported)…"></textarea>
+                  </div>
+                </div>
+                <div id="policyEditAlert" class="alert d-none mt-3"></div>
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn btn-success" onclick="savePolicy()"><i class="bi bi-check2 me-1"></i>Save</button>
+                  <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+                  <a class="btn btn-outline-secondary ms-auto" href="/policy"><i class="bi bi-box-arrow-up-right me-1"></i>Open standalone page</a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- Add/Edit Supplier Modal -->
@@ -68,21 +194,146 @@
             <label class="form-label">Country</label>
             <input type="text" class="form-control" id="sCountry" placeholder="e.g. Ireland">
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Carbon Score (0–100)</label>
-            <input type="number" class="form-control" id="sCarbonScore" min="0" max="100">
+          <div class="col-12"><hr class="my-1"></div>
+          <div class="col-12">
+            <div class="small text-muted fw-semibold">Carbon scorecard (0 = none, 50 = partial, 100 = complete)</div>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Waste Score (0–100)</label>
-            <input type="number" class="form-control" id="sWasteScore" min="0" max="100">
+            <label class="form-label">Disclosure</label>
+            <select class="form-select" id="sCarbonDisclosure">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Ethics Score (0–100)</label>
-            <input type="number" class="form-control" id="sEthicsScore" min="0" max="100">
+            <label class="form-label">Target</label>
+            <select class="form-select" id="sCarbonTarget">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Reporting Score (0–100)</label>
-            <input type="number" class="form-control" id="sReportingScore" min="0" max="100">
+            <label class="form-label">Measures</label>
+            <select class="form-select" id="sCarbonMeasures">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Certification</label>
+            <select class="form-select" id="sCarbonCertification">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted fw-semibold">Waste scorecard</div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Policy</label>
+            <select class="form-select" id="sWastePolicy">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Recycling</label>
+            <select class="form-select" id="sWasteRecycling">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Packaging</label>
+            <select class="form-select" id="sWastePackaging">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tracking</label>
+            <select class="form-select" id="sWasteTracking">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted fw-semibold">Ethics scorecard</div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Labor</label>
+            <select class="form-select" id="sEthicsLabor">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Safety</label>
+            <select class="form-select" id="sEthicsSafety">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Working Conditions</label>
+            <select class="form-select" id="sEthicsWorkingConditions">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Governance</label>
+            <select class="form-select" id="sEthicsGovernance">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted fw-semibold">Reporting scorecard</div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Report</label>
+            <select class="form-select" id="sReportingReport">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Completeness</label>
+            <select class="form-select" id="sReportingCompleteness">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Frequency</label>
+            <select class="form-select" id="sReportingFrequency">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Verification</label>
+            <select class="form-select" id="sReportingVerification">
+              <option value="100">100 - Complete</option>
+              <option value="50">50 - Partial</option>
+              <option value="0">0 - None</option>
+            </select>
           </div>
           <div class="col-12">
             <label class="form-label">Notes</label>
@@ -103,8 +354,54 @@
 {% block extra_js %}
 <script>
 const GRADE_COLOR = { A:'success', B:'primary', C:'warning', D:'danger', F:'dark' };
+const CAT_COLOR = { sdg12:'danger', environment:'success', social:'primary', governance:'warning', other:'secondary' };
+const isManager = document.getElementById('esgManagementRoot').dataset.isManager === 'true';
+const SUPPLIER_SCORECARD_FIELDS = [
+  'carbon_disclosure', 'carbon_target', 'carbon_measures', 'carbon_certification',
+  'waste_policy', 'waste_recycling', 'waste_packaging', 'waste_tracking',
+  'ethics_labor', 'ethics_safety', 'ethics_working_conditions', 'ethics_governance',
+  'reporting_report', 'reporting_completeness', 'reporting_frequency', 'reporting_verification'
+];
+let _policies = [];
+let _currentPolicy = null;
 
-document.addEventListener('DOMContentLoaded', loadSuppliers);
+document.addEventListener('DOMContentLoaded', async () => {
+  await Promise.all([loadSuppliers(), loadPolicies()]);
+  const initialTab = new URLSearchParams(window.location.search).get('tab');
+  if (initialTab === 'policies') {
+    bootstrap.Tab.getOrCreateInstance(document.getElementById('policies-tab')).show();
+  }
+});
+
+function prepareNewSupplier() {
+  document.getElementById('editSupplierId').value = '';
+  document.getElementById('sName').value = '';
+  document.getElementById('sCategory').value = '';
+  document.getElementById('sCountry').value = '';
+  setSupplierScorecardValues();
+  document.getElementById('sNotes').value = '';
+  document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
+  document.getElementById('supplierModalAlert').className = 'alert d-none';
+}
+
+function supplierScorecardElementId(field) {
+  const parts = field.split('_');
+  return 's' + parts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+}
+
+function setSupplierScorecardValues(values = {}) {
+  SUPPLIER_SCORECARD_FIELDS.forEach(field => {
+    document.getElementById(supplierScorecardElementId(field)).value = String(values[field] ?? 100);
+  });
+}
+
+function getSupplierScorecardPayload() {
+  const payload = {};
+  SUPPLIER_SCORECARD_FIELDS.forEach(field => {
+    payload[field] = parseInt(document.getElementById(supplierScorecardElementId(field)).value, 10);
+  });
+  return payload;
+}
 
 async function loadSuppliers() {
   const data = await apiFetch('/api/supplier/list');
@@ -133,7 +430,6 @@ async function loadSuppliers() {
     ${data.mock ? '<div class="alert alert-info mt-2 py-2 small"><i class="bi bi-info-circle me-1"></i>Showing mock data — run the migration SQL to activate live data.</div>' : ''}
   `;
 
-  const isManager = {{ 'true' if session.get('role') in ('hq_manager','admin') else 'false' }};
   const tbody = document.getElementById('supplierBody');
   if (!suppliers.length) {
     tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No suppliers assessed yet.</td></tr>';
@@ -168,10 +464,7 @@ function openEditSupplier(s) {
   document.getElementById('sName').value           = s.name;
   document.getElementById('sCategory').value       = s.category||'';
   document.getElementById('sCountry').value        = s.country||'';
-  document.getElementById('sCarbonScore').value    = s.carbon_score??'';
-  document.getElementById('sWasteScore').value     = s.waste_score??'';
-  document.getElementById('sEthicsScore').value    = s.ethics_score??'';
-  document.getElementById('sReportingScore').value = s.reporting_score??'';
+  setSupplierScorecardValues(s);
   document.getElementById('sNotes').value          = s.notes||'';
   document.getElementById('supplierModalTitle').textContent = 'Edit Supplier';
   document.getElementById('supplierModalAlert').className = 'alert d-none';
@@ -184,11 +477,8 @@ async function saveSupplier() {
     name:            document.getElementById('sName').value.trim(),
     category:        document.getElementById('sCategory').value.trim(),
     country:         document.getElementById('sCountry').value.trim(),
-    carbon_score:    parseInt(document.getElementById('sCarbonScore').value)||null,
-    waste_score:     parseInt(document.getElementById('sWasteScore').value)||null,
-    ethics_score:    parseInt(document.getElementById('sEthicsScore').value)||null,
-    reporting_score: parseInt(document.getElementById('sReportingScore').value)||null,
     notes:           document.getElementById('sNotes').value.trim(),
+    ...getSupplierScorecardPayload(),
   };
   if (!payload.name) { showAlert('supplierModalAlert','Supplier name required.'); return; }
   const url    = id ? `/api/supplier/edit/${id}` : '/api/supplier/add';
@@ -208,6 +498,135 @@ async function deleteSupplier(id) {
   if (!confirm('Delete this supplier assessment?')) return;
   const data = await apiFetch(`/api/supplier/delete/${id}`, { method:'DELETE' });
   if (data && data.success) loadSuppliers();
+}
+
+async function loadPolicies() {
+  const data = await apiFetch('/api/policy/list');
+  if (!data || !data.success) return;
+  _policies = data.data;
+  document.getElementById('mockBadge').classList.toggle('d-none', !data.mock);
+
+  const listEl = document.getElementById('policyList');
+  if (!_policies.length) {
+    listEl.innerHTML = '<div class="text-center text-muted py-4">No policies yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = _policies.map(p => `
+    <button class="list-group-item list-group-item-action px-3 py-2" onclick="viewPolicy(${p.id})">
+      <div class="d-flex justify-content-between align-items-center">
+        <strong class="small">${p.title}</strong>
+        <span class="badge bg-${CAT_COLOR[p.category]||'secondary'} ms-2">${p.category}</span>
+      </div>
+      <div class="text-muted" style="font-size:0.75rem">${p.status} · v${p.version}</div>
+    </button>
+  `).join('');
+
+  const firstActive = _policies.find(p => p.status === 'active') || _policies[0];
+  if (!_currentPolicy && firstActive) viewPolicy(firstActive.id);
+}
+
+function viewPolicy(id) {
+  _currentPolicy = _policies.find(p => p.id === id);
+  if (!_currentPolicy) return;
+  const p = _currentPolicy;
+  document.getElementById('policyPlaceholder').classList.add('d-none');
+  document.getElementById('policyEditView').classList.add('d-none');
+  document.getElementById('policyReadView').classList.remove('d-none');
+  document.getElementById('pDetailTitle').textContent = p.title;
+  document.getElementById('pDetailVersion').textContent = 'v' + p.version;
+  document.getElementById('pDetailStatus').textContent = p.status;
+  document.getElementById('pDetailDate').textContent = p.effective_date || '—';
+  document.getElementById('pDetailAuthor').textContent = p.created_by_name || '—';
+  const catBadge = document.getElementById('pDetailCatBadge');
+  catBadge.className = `badge bg-${CAT_COLOR[p.category]||'secondary'}`;
+  catBadge.textContent = p.category;
+  document.getElementById('pDetailContent').textContent = p.content;
+}
+
+function openNewPolicy() {
+  _currentPolicy = null;
+  document.getElementById('editPolicyId').value = '';
+  document.getElementById('pTitle').value = '';
+  document.getElementById('pCategory').value = 'sdg12';
+  document.getElementById('pStatus').value = 'draft';
+  document.getElementById('pEffectiveDate').value = '';
+  document.getElementById('pVersion').value = '1.0';
+  document.getElementById('pContent').value = '';
+  document.getElementById('pEditTitle').textContent = 'New Policy';
+  document.getElementById('policyEditAlert').className = 'alert d-none';
+  document.getElementById('policyPlaceholder').classList.add('d-none');
+  document.getElementById('policyReadView').classList.add('d-none');
+  document.getElementById('policyEditView').classList.remove('d-none');
+  bootstrap.Tab.getOrCreateInstance(document.getElementById('policies-tab')).show();
+}
+
+function openEditPolicy() {
+  if (!_currentPolicy) return;
+  const p = _currentPolicy;
+  document.getElementById('editPolicyId').value = p.id;
+  document.getElementById('pTitle').value = p.title;
+  document.getElementById('pCategory').value = p.category;
+  document.getElementById('pStatus').value = p.status;
+  document.getElementById('pEffectiveDate').value = p.effective_date || '';
+  document.getElementById('pVersion').value = p.version;
+  document.getElementById('pContent').value = p.content;
+  document.getElementById('pEditTitle').textContent = 'Edit Policy';
+  document.getElementById('policyEditAlert').className = 'alert d-none';
+  document.getElementById('policyReadView').classList.add('d-none');
+  document.getElementById('policyEditView').classList.remove('d-none');
+  bootstrap.Tab.getOrCreateInstance(document.getElementById('policies-tab')).show();
+}
+
+function cancelEdit() {
+  document.getElementById('policyEditView').classList.add('d-none');
+  if (_currentPolicy) {
+    viewPolicy(_currentPolicy.id);
+  } else {
+    document.getElementById('policyPlaceholder').classList.remove('d-none');
+  }
+}
+
+async function savePolicy() {
+  const id = document.getElementById('editPolicyId').value;
+  const payload = {
+    title: document.getElementById('pTitle').value.trim(),
+    category: document.getElementById('pCategory').value,
+    status: document.getElementById('pStatus').value,
+    effective_date: document.getElementById('pEffectiveDate').value || null,
+    version: document.getElementById('pVersion').value.trim() || '1.0',
+    content: document.getElementById('pContent').value.trim(),
+  };
+  if (!payload.title || !payload.content) {
+    showAlert('policyEditAlert', 'Title and content are required.');
+    return;
+  }
+  const url = id ? `/api/policy/edit/${id}` : '/api/policy/add';
+  const method = id ? 'PUT' : 'POST';
+  const data = await apiFetch(url, { method, body: JSON.stringify(payload) });
+  if (data && data.success) {
+    document.getElementById('policyEditView').classList.add('d-none');
+    _currentPolicy = null;
+    await loadPolicies();
+    if (id) {
+      viewPolicy(parseInt(id));
+    } else if (data.data && data.data.id) {
+      viewPolicy(data.data.id);
+    }
+  } else {
+    showAlert('policyEditAlert', (data && data.message) || 'Save failed.');
+  }
+}
+
+async function deletePolicy() {
+  if (!_currentPolicy || !confirm(`Delete policy "${_currentPolicy.title}"?`)) return;
+  const data = await apiFetch(`/api/policy/delete/${_currentPolicy.id}`, { method: 'DELETE' });
+  if (data && data.success) {
+    _currentPolicy = null;
+    document.getElementById('policyReadView').classList.add('d-none');
+    document.getElementById('policyPlaceholder').classList.remove('d-none');
+    await loadPolicies();
+  }
 }
 </script>
 {% endblock %}

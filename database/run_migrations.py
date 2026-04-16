@@ -78,6 +78,22 @@ run('''CREATE TABLE IF NOT EXISTS supplier (
     name VARCHAR(200) NOT NULL,
     category VARCHAR(100) DEFAULT NULL,
     country VARCHAR(100) DEFAULT NULL,
+    carbon_disclosure TINYINT DEFAULT NULL,
+    carbon_target TINYINT DEFAULT NULL,
+    carbon_measures TINYINT DEFAULT NULL,
+    carbon_certification TINYINT DEFAULT NULL,
+    waste_policy TINYINT DEFAULT NULL,
+    waste_recycling TINYINT DEFAULT NULL,
+    waste_packaging TINYINT DEFAULT NULL,
+    waste_tracking TINYINT DEFAULT NULL,
+    ethics_labor TINYINT DEFAULT NULL,
+    ethics_safety TINYINT DEFAULT NULL,
+    ethics_working_conditions TINYINT DEFAULT NULL,
+    ethics_governance TINYINT DEFAULT NULL,
+    reporting_report TINYINT DEFAULT NULL,
+    reporting_completeness TINYINT DEFAULT NULL,
+    reporting_frequency TINYINT DEFAULT NULL,
+    reporting_verification TINYINT DEFAULT NULL,
     carbon_score TINYINT DEFAULT NULL,
     waste_score TINYINT DEFAULT NULL,
     ethics_score TINYINT DEFAULT NULL,
@@ -90,6 +106,27 @@ run('''CREATE TABLE IF NOT EXISTS supplier (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE
 ) ENGINE=InnoDB''', label='create supplier table')
+
+supplier_scorecard_columns = [
+    ('carbon_disclosure', 'ALTER TABLE supplier ADD COLUMN carbon_disclosure TINYINT DEFAULT NULL'),
+    ('carbon_target', 'ALTER TABLE supplier ADD COLUMN carbon_target TINYINT DEFAULT NULL'),
+    ('carbon_measures', 'ALTER TABLE supplier ADD COLUMN carbon_measures TINYINT DEFAULT NULL'),
+    ('carbon_certification', 'ALTER TABLE supplier ADD COLUMN carbon_certification TINYINT DEFAULT NULL'),
+    ('waste_policy', 'ALTER TABLE supplier ADD COLUMN waste_policy TINYINT DEFAULT NULL'),
+    ('waste_recycling', 'ALTER TABLE supplier ADD COLUMN waste_recycling TINYINT DEFAULT NULL'),
+    ('waste_packaging', 'ALTER TABLE supplier ADD COLUMN waste_packaging TINYINT DEFAULT NULL'),
+    ('waste_tracking', 'ALTER TABLE supplier ADD COLUMN waste_tracking TINYINT DEFAULT NULL'),
+    ('ethics_labor', 'ALTER TABLE supplier ADD COLUMN ethics_labor TINYINT DEFAULT NULL'),
+    ('ethics_safety', 'ALTER TABLE supplier ADD COLUMN ethics_safety TINYINT DEFAULT NULL'),
+    ('ethics_working_conditions', 'ALTER TABLE supplier ADD COLUMN ethics_working_conditions TINYINT DEFAULT NULL'),
+    ('ethics_governance', 'ALTER TABLE supplier ADD COLUMN ethics_governance TINYINT DEFAULT NULL'),
+    ('reporting_report', 'ALTER TABLE supplier ADD COLUMN reporting_report TINYINT DEFAULT NULL'),
+    ('reporting_completeness', 'ALTER TABLE supplier ADD COLUMN reporting_completeness TINYINT DEFAULT NULL'),
+    ('reporting_frequency', 'ALTER TABLE supplier ADD COLUMN reporting_frequency TINYINT DEFAULT NULL'),
+    ('reporting_verification', 'ALTER TABLE supplier ADD COLUMN reporting_verification TINYINT DEFAULT NULL'),
+]
+for column_name, sql in supplier_scorecard_columns:
+    run(sql, label=f'add {column_name} to supplier')
 
 print('\n=== Migration 3: esg_policy table ===')
 run('''CREATE TABLE IF NOT EXISTS esg_policy (
@@ -111,20 +148,29 @@ run('''CREATE TABLE IF NOT EXISTS esg_policy (
 
 print('\n=== Seed: sample suppliers ===')
 suppliers = [
-    (1, 'GreenBean Co.', 'Coffee Beans', 'Colombia', 82, 75, 90, 70, 'B',
-     'Rainforest Alliance certified; annual sustainability report published.'),
-    (1, 'EcoPack Ltd.', 'Packaging', 'China', 65, 88, 72, 55, 'B',
-     'Uses 80% recycled materials; limited carbon disclosure.'),
-    (1, 'SwiftLogistics Inc.', 'Logistics', 'Ireland', 45, 50, 68, 40, 'C',
-     'Fleet electrification plan underway; no formal ESG report yet.'),
-    (1, 'PureMilk Farms', 'Dairy', 'Ireland', 70, 60, 80, 60, 'B',
-     'Carbon-neutral milk pilot; moderate waste recovery rate.'),
-    (1, 'CleanCup Corp.', 'Disposables', 'Germany', 90, 92, 85, 88, 'A',
-     'Industry leader in compostable cup technology; full GRI reporting.'),
+    (1, 'GreenBean Co.', 'Coffee Beans', 'Colombia',
+     100, 100, 50, 100, 50, 100, 50, 100, 100, 100, 100, 50, 100, 100, 50, 100,
+     83, 73, 90, 80, 'B', 'Rainforest Alliance certified; annual sustainability report published.'),
+    (1, 'EcoPack Ltd.', 'Packaging', 'China',
+     50, 50, 100, 50, 100, 100, 100, 50, 100, 50, 50, 100, 50, 50, 100, 50,
+     68, 83, 75, 65, 'B', 'Uses 80% recycled materials; limited carbon disclosure.'),
+    (1, 'SwiftLogistics Inc.', 'Logistics', 'Ireland',
+     50, 50, 50, 0, 50, 50, 50, 50, 100, 50, 50, 50, 50, 50, 50, 0,
+     43, 50, 63, 45, 'C', 'Fleet electrification plan underway; no formal ESG report yet.'),
+    (1, 'PureMilk Farms', 'Dairy', 'Ireland',
+     100, 50, 50, 50, 50, 50, 50, 100, 100, 100, 50, 50, 50, 50, 100, 50,
+     68, 60, 80, 65, 'B', 'Carbon-neutral milk pilot; moderate waste recovery rate.'),
+    (1, 'CleanCup Corp.', 'Disposables', 'Germany',
+     100, 100, 100, 50, 100, 100, 100, 50, 100, 100, 50, 100, 100, 100, 100, 50,
+     90, 90, 85, 90, 'A', 'Industry leader in compostable cup technology; full GRI reporting.'),
 ]
 for s in suppliers:
-    run('INSERT INTO supplier (company_id,name,category,country,carbon_score,waste_score,'
-        'ethics_score,reporting_score,overall_grade,notes) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+    run('INSERT INTO supplier (company_id,name,category,country,carbon_disclosure,carbon_target,'
+        'carbon_measures,carbon_certification,waste_policy,waste_recycling,waste_packaging,waste_tracking,'
+        'ethics_labor,ethics_safety,ethics_working_conditions,ethics_governance,reporting_report,'
+        'reporting_completeness,reporting_frequency,reporting_verification,carbon_score,waste_score,'
+        'ethics_score,reporting_score,overall_grade,notes) '
+        'VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
         s, label=f'supplier: {s[1]}')
 
 print('\n=== Seed: sample ESG policies ===')
