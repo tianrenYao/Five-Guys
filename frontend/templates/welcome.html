@@ -21,6 +21,18 @@
         text-decoration: none;
     }
 
+    .welcome-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .welcome-company-logo {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+    }
+
     .welcome-login-btn {
         border: 1px solid #003CA6;
         color: #003CA6;
@@ -88,6 +100,7 @@
 
     .welcome-desc .reveal-line:nth-child(1) { animation-delay: 0.82s; }
     .welcome-desc .reveal-line:nth-child(2) { animation-delay: 1.02s; }
+.welcome-desc .reveal-line:nth-child(3) { animation-delay: 1.22s; }
 
     @keyframes fadeUp {
         from {
@@ -124,7 +137,10 @@
 <div class="welcome-page">
     <header class="welcome-topbar">
         <div class="container d-flex align-items-center justify-content-between">
-            <a href="/welcome" class="welcome-logo">SustainPlatform</a>
+            <a href="/welcome" class="welcome-logo welcome-brand">
+                <span>ESG Platform</span>
+                <img src="/brand/company-logo" alt="Company Logo" class="welcome-company-logo">
+            </a>
             <a href="/login" class="welcome-login-btn">
                 <i class="bi bi-box-arrow-in-right me-1"></i>Login
             </a>

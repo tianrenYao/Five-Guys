@@ -14,6 +14,10 @@ LUCKIN_HERO_BG_PATH = (
     '/Users/lance-lee/.cursor/projects/Users-lance-lee-Desktop-Five-Guys/assets/'
     'image-8b5a0b9a-01c5-46a4-ac69-bd5df7dc876b.png'
 )
+COMPANY_LOGO_PATH = (
+    '/Users/lance-lee/.cursor/projects/Users-lance-lee-Desktop-Five-Guys/assets/'
+    '__logo-c47f451e-fffa-4b48-ad36-0e914fd133e1.png'
+)
 
 
 @auth_bp.route('/welcome', methods=['GET'])
@@ -35,6 +39,13 @@ def luckin_hero():
     if not os.path.exists(LUCKIN_HERO_BG_PATH):
         return jsonify({'success': False, 'message': 'Hero image not found'}), 404
     return send_file(LUCKIN_HERO_BG_PATH, mimetype='image/png')
+
+
+@auth_bp.route('/brand/company-logo', methods=['GET'])
+def company_logo():
+    if not os.path.exists(COMPANY_LOGO_PATH):
+        return jsonify({'success': False, 'message': 'Company logo not found'}), 404
+    return send_file(COMPANY_LOGO_PATH, mimetype='image/png')
 
 
 @auth_bp.route('/login', methods=['GET'])
