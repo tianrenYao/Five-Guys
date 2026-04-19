@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, session, render_template, jsonify, send_file
 from backend.utils.db import query_db, execute_db, insert_db
 from backend.utils.auth_helper import login_required, role_required, get_accessible_store_ids
+from backend.utils.native_libs import prepare_macos_weasyprint_runtime
 
 report_bp = Blueprint('report', __name__)
 
@@ -153,8 +154,20 @@ def report_export_pdf(report_id):
         from weasyprint import HTML
         from jinja2 import Environment, FileSystemLoader
     except ImportError:
-        return jsonify({'success': False,
-                        'message': 'WeasyPrint not installed. Run: pip install weasyprint'}), 500
+        return jsonify({
+            'success': False,
+            'message': 'WeasyPrint not installed. Run: pip install weasyprint'
+        }), 500
+    except OSError as err:
+        prepare_macos_weasyprint_runtime()
+        try:
+            from weasyprint import HTML
+            from jinja2 import Environment, FileSystemLoader
+        except Exception:
+            return jsonify({
+                'success': False,
+                'message': f'WeasyPrint runtime error: {err}'
+            }), 500
 
     # Re-query aggregated data for the PDF template
     company_id = report['company_id']

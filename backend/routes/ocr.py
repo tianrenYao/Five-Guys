@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template
 from jinja2 import Environment, FileSystemLoader
 from backend.utils.auth_helper import login_required
+from backend.utils.native_libs import prepare_macos_weasyprint_runtime
 
 ocr_bp = Blueprint('ocr', __name__)
 
@@ -55,6 +56,12 @@ def demo_bill_pdf():
         from weasyprint import HTML
     except ImportError:
         return jsonify({'success': False, 'message': 'WeasyPrint not installed'}), 500
+    except OSError as err:
+        prepare_macos_weasyprint_runtime()
+        try:
+            from weasyprint import HTML
+        except Exception:
+            return jsonify({'success': False, 'message': f'WeasyPrint runtime error: {err}'}), 500
 
     html_str = _generate_demo_bill()
     pdf_bytes = HTML(string=html_str).write_pdf()

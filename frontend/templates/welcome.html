@@ -53,7 +53,7 @@
         min-height: calc(100vh - 78px);
         display: flex;
         align-items: center;
-        background-image: url('/brand/luckin-hero');
+        background-image: url("{{ url_for('static', filename='img/welcome-hero-bg.png') }}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -139,7 +139,7 @@
         <div class="container d-flex align-items-center justify-content-between">
             <a href="/welcome" class="welcome-logo welcome-brand">
                 <span>ESG Platform</span>
-                <img src="/brand/company-logo" alt="Company Logo" class="welcome-company-logo">
+                <img src="{{ url_for('static', filename='img/company-logo.png') }}" alt="Company Logo" class="welcome-company-logo">
             </a>
             <a href="/login" class="welcome-login-btn">
                 <i class="bi bi-box-arrow-in-right me-1"></i>Login

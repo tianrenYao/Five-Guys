@@ -1,23 +1,9 @@
-import os
-
-from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify, send_file
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify
 from werkzeug.security import check_password_hash
 from backend.utils.db import query_db, execute_db
 from backend.utils.auth_helper import login_required
 
 auth_bp = Blueprint('auth', __name__)
-LUCKIN_LOGO_PATH = (
-    '/Users/lance-lee/.cursor/projects/Users-lance-lee-Desktop-Five-Guys/assets/'
-    'cdnlogo.com_luckin-coffee-b62b131f-6022-4981-9c9d-e793347ac0da.png'
-)
-LUCKIN_HERO_BG_PATH = (
-    '/Users/lance-lee/.cursor/projects/Users-lance-lee-Desktop-Five-Guys/assets/'
-    'image-8b5a0b9a-01c5-46a4-ac69-bd5df7dc876b.png'
-)
-COMPANY_LOGO_PATH = (
-    '/Users/lance-lee/.cursor/projects/Users-lance-lee-Desktop-Five-Guys/assets/'
-    '__logo-c47f451e-fffa-4b48-ad36-0e914fd133e1.png'
-)
 
 
 @auth_bp.route('/welcome', methods=['GET'])
@@ -25,27 +11,6 @@ def welcome_page():
     if 'user_id' in session:
         return redirect(url_for('dashboard.dashboard_page'))
     return render_template('welcome.html')
-
-
-@auth_bp.route('/brand/luckin-logo', methods=['GET'])
-def luckin_logo():
-    if not os.path.exists(LUCKIN_LOGO_PATH):
-        return jsonify({'success': False, 'message': 'Logo not found'}), 404
-    return send_file(LUCKIN_LOGO_PATH, mimetype='image/png')
-
-
-@auth_bp.route('/brand/luckin-hero', methods=['GET'])
-def luckin_hero():
-    if not os.path.exists(LUCKIN_HERO_BG_PATH):
-        return jsonify({'success': False, 'message': 'Hero image not found'}), 404
-    return send_file(LUCKIN_HERO_BG_PATH, mimetype='image/png')
-
-
-@auth_bp.route('/brand/company-logo', methods=['GET'])
-def company_logo():
-    if not os.path.exists(COMPANY_LOGO_PATH):
-        return jsonify({'success': False, 'message': 'Company logo not found'}), 404
-    return send_file(COMPANY_LOGO_PATH, mimetype='image/png')
 
 
 @auth_bp.route('/login', methods=['GET'])

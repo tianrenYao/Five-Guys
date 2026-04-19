@@ -8,9 +8,12 @@ from flask import Flask
 from flask_cors import CORS
 from backend.config import Config
 from backend.utils.db import close_db
+from backend.utils.native_libs import prepare_macos_weasyprint_runtime
 
 
 def create_app():
+    prepare_macos_weasyprint_runtime()
+
     app = Flask(
         __name__,
         template_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend', 'templates'),
