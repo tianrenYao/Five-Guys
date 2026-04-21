@@ -12,6 +12,8 @@ CREATE DATABASE IF NOT EXISTS sustainability_platform
 USE sustainability_platform;
 
 -- Drop existing tables (reverse foreign key dependency order)
+DROP TABLE IF EXISTS esg_policy;
+DROP TABLE IF EXISTS supplier;
 DROP TABLE IF EXISTS alert_log;
 DROP TABLE IF EXISTS alert_threshold;
 DROP TABLE IF EXISTS audit_log;
