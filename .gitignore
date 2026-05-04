@@ -31,3 +31,4 @@ backend/reports/*.pdf
 *.blg
 *.out
 *.toc
+登录远程VM并验证的方法.md

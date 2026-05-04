@@ -232,46 +232,70 @@ sudo journalctl -u esg -n 100 --no-pager  # 最近 100 行
 
 ### 6.1 `ssh ... Connection closed by 172.19.0.142 port 22`
 
-ping 通但 SSH 立即关闭。**ping 通说明网络没问题**，问题在 SSH 服务端拒绝。
+ping 通但 SSH 立即关闭 = **fail2ban 封了你的 IP**（最常见）。
 
-**先跑 verbose 看具体情况**：
+**确认方法**：跑
 
 ```bash
 ssh -v student@csi6220-1-vm2.ucd.ie 2>&1 | head -40
 ```
 
-**常见 3 种原因**：
+看到最后一行是 `kex_exchange_identification: Connection closed by remote host` 就是 fail2ban。
 
-**A. fail2ban 封了你的 IP**
+**解封三选一**：
 
-如果 verbose 输出里有 `kex_exchange_identification: Connection closed by remote host`，就是 fail2ban。
+- **A. 等 10 分钟**（默认 bantime）自动解封
+- **B. 用手机热点换 IP** 连上 VM，然后：
 
-解决方案：
+    ```bash
+    sudo fail2ban-client status sshd
+    sudo fail2ban-client unban --all
+    ```
 
-- **等 10 分钟**自动解封（默认封禁时长）
-- 或换个网络（比如手机热点）临时连上 VM 手动解封：
+- **C. 让其他网络环境的组员** 帮你登录 VM，跑同样的 `unban --all` 命令
 
-  ```bash
-  sudo fail2ban-client status sshd
-  sudo fail2ban-client unban <你被封的IP>
-  ```
+**解封后立刻做两件事防再次被封**：
 
-**B. known_hosts 旧指纹不匹配**
+**① Mac 端：配置 SSH 只用密码，别盲试 7 种密钥**
 
-如果 verbose 输出里有 `Host key verification failed` 或 `REMOTE HOST IDENTIFICATION HAS CHANGED`：
+```bash
+cat >> ~/.ssh/config << 'EOF'
+
+Host csi6220-1-vm2.ucd.ie
+    User student
+    PreferredAuthentications password
+    PubkeyAuthentication no
+    IdentitiesOnly yes
+EOF
+
+chmod 600 ~/.ssh/config
+```
+
+之后跑 `ssh csi6220-1-vm2.ucd.ie` 就行（不用带 `student@`）。
+
+**② VM 端：放宽 fail2ban（只需做一次，所有组员受益）**
+
+```bash
+sudo tee /etc/fail2ban/jail.d/ssh-tolerant.local > /dev/null << 'EOF'
+[sshd]
+enabled = true
+maxretry = 10
+findtime = 10m
+bantime = 5m
+EOF
+
+sudo systemctl restart fail2ban
+sudo fail2ban-client status sshd
+```
+
+### 6.1b known_hosts 旧指纹冲突
+
+如果 `-v` 输出里有 `Host key verification failed` 或 `REMOTE HOST IDENTIFICATION HAS CHANGED`：
 
 ```bash
 ssh-keygen -R csi6220-1-vm2.ucd.ie
 ssh-keygen -R 172.19.0.142
 ssh student@csi6220-1-vm2.ucd.ie   # 再试，输 yes 接受新指纹
-```
-
-**C. SSH 协议协商失败**
-
-先强制用密码登录，跳过公钥尝试：
-
-```bash
-ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password student@csi6220-1-vm2.ucd.ie
 ```
 
 ### 6.2 `ssh ... Operation timed out` / `No route to host`
