@@ -40,6 +40,7 @@ def create_app():
     from backend.routes.compliance import compliance_bp
     from backend.routes.supplier import supplier_bp
     from backend.routes.policy import policy_bp
+    from backend.routes.map import map_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -55,6 +56,7 @@ def create_app():
     app.register_blueprint(compliance_bp)
     app.register_blueprint(supplier_bp)
     app.register_blueprint(policy_bp)
+    app.register_blueprint(map_bp)
 
     # Init Flask-Mail (falls back to mock if MAIL_SERVER not set)
     from backend.utils.mail import init_mail
@@ -69,7 +71,12 @@ def create_app():
     return app
 
 
+# Module-level app object so production servers (e.g. Gunicorn) can import it
+# Usage: gunicorn 'backend.app:app' --bind 127.0.0.1:5001
+app = create_app()
+
+
 if __name__ == '__main__':
-    app = create_app()
+    host = os.getenv('FLASK_HOST', '127.0.0.1')
     port = int(os.getenv('FLASK_PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'])
+    app.run(host=host, port=port, debug=app.config['DEBUG'])

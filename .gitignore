@@ -24,3 +24,10 @@ backend/reports/*.pdf
 
 # Logs
 *.log
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc

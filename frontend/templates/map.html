@@ -1,0 +1,743 @@
+{% extends "base.html" %}
+
+{% block title %}Store Map · ESG Platform{% endblock %}
+{% block page_title %}Store Map{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet core -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<!-- MarkerCluster plugin -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+    /* Map-page layout: both columns share full viewport height so the */
+    /* right-hand map never shows blank space below it.                 */
+    .map-layout {
+        height: calc(100vh - 110px);
+        min-height: 560px;
+    }
+    .map-sidebar {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: .5rem;
+        /* Firefox thin scrollbar */
+        scrollbar-width: thin;
+    }
+    .map-sidebar::-webkit-scrollbar        { width: 6px; }
+    .map-sidebar::-webkit-scrollbar-thumb  { background: #ced4da; border-radius: 3px; }
+    .map-sidebar::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+
+    #esg-map {
+        height: 100%;
+        min-height: 520px;
+        border-radius: 12px;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,.06);
+    }
+
+    /* Collapsible card header: pointer cursor + rotating chevron */
+    .card-toggle {
+        cursor: pointer;
+        user-select: none;
+    }
+    .card-toggle .collapse-chev {
+        transition: transform .25s ease;
+        font-size: .85rem;
+        opacity: .6;
+    }
+    .card-toggle.collapsed .collapse-chev {
+        transform: rotate(-90deg);
+    }
+    .card-toggle:hover .collapse-chev { opacity: 1; }
+    .legend-dot {
+        display: inline-block; width: 12px; height: 12px;
+        border-radius: 50%; margin-right: 6px; vertical-align: middle;
+    }
+    .legend-dot.green  { background: #28a745; }
+    .legend-dot.amber  { background: #ffc107; }
+    .legend-dot.red    { background: #dc3545; }
+    .store-popup h6 { margin-bottom: .35rem; font-weight: 600; }
+    .store-popup .metric-row {
+        display: flex; justify-content: space-between;
+        font-size: .85rem; padding: 2px 0;
+    }
+    .store-popup .metric-row .label { color: #6c757d; }
+    .store-popup .metric-row .value { font-weight: 600; }
+    .store-popup .badge-grade {
+        font-size: .7rem; padding: 3px 8px; border-radius: 10px;
+    }
+    .store-popup .mini-chart {
+        height: 90px; margin-top: 6px;
+    }
+    .topn-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 4px; border-radius: 6px; cursor: pointer;
+        font-size: .85rem; transition: background-color .15s;
+    }
+    .topn-item:hover { background: rgba(25,135,84,.08); }
+    .topn-item .rank {
+        display: inline-block; width: 22px; height: 22px;
+        line-height: 22px; text-align: center; border-radius: 50%;
+        font-weight: 700; font-size: .75rem; margin-right: 6px;
+        background: #eee; color: #333;
+    }
+    .topn-item .rank.r1 { background: #dc3545; color: #fff; }
+    .topn-item .rank.r2 { background: #fd7e14; color: #fff; }
+    .topn-item .rank.r3 { background: #ffc107; color: #000; }
+    .topn-item .value {
+        font-weight: 600; color: #dc3545; font-size: .8rem;
+    }
+    .search-results {
+        position: absolute; z-index: 999;
+        background: #fff; border: 1px solid #dee2e6; border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.1);
+        max-height: 240px; overflow-y: auto;
+        width: calc(100% - 2rem); margin-top: 2px;
+    }
+    .search-results .sr-item {
+        padding: 8px 12px; cursor: pointer; font-size: .85rem;
+        border-bottom: 1px solid #f1f1f1;
+    }
+    .search-results .sr-item:hover { background: #f8f9fa; }
+    .search-results .sr-item:last-child { border-bottom: none; }
+    .search-results .sr-item .muted { color: #6c757d; font-size: .75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 map-layout">
+    <!-- Left column: controls & Top-N -->
+    <div class="col-lg-3 map-sidebar">
+        <!-- KPI summary (collapsible) -->
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center card-toggle"
+                 data-bs-toggle="collapse" data-bs-target="#card-overview"
+                 aria-expanded="true" aria-controls="card-overview">
+                <span><i class="bi bi-geo-alt me-1"></i>Map Overview</span>
+                <i class="bi bi-chevron-down collapse-chev text-white"></i>
+            </div>
+            <div class="collapse show" id="card-overview">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted small">Regions</span>
+                        <span class="fw-bold" id="kpi-regions">--</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted small">Stores shown</span>
+                        <span class="fw-bold" id="kpi-stores">--</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted small">Open Alerts</span>
+                        <span class="fw-bold text-danger" id="kpi-alerts">--</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted small">Total Carbon YTD</span>
+                        <span class="fw-bold" id="kpi-carbon">--</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted small">Tree-offset equiv.</span>
+                        <span class="fw-bold text-success" id="kpi-trees" title="kgCO2 / 21kg per tree/year">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <i class="bi bi-search me-1"></i>Quick Search
+            </div>
+            <div class="card-body py-2 position-relative">
+                <input type="text" id="storeSearch" class="form-control form-control-sm"
+                       placeholder="Type store / city / region..." autocomplete="off">
+                <div id="searchResults" class="search-results d-none"></div>
+            </div>
+        </div>
+
+        <!-- View mode + layer toggles -->
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <i class="bi bi-layers me-1"></i>View Mode
+            </div>
+            <div class="card-body py-2">
+                <div class="btn-group w-100 mb-2" role="group">
+                    <input type="radio" class="btn-check" name="viewMode" id="modeStores" value="stores" checked>
+                    <label class="btn btn-outline-success btn-sm" for="modeStores">Stores</label>
+                    <input type="radio" class="btn-check" name="viewMode" id="modeRegions" value="regions">
+                    <label class="btn btn-outline-success btn-sm" for="modeRegions">Regions</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="toggleHeatmap">
+                    <label class="form-check-label small" for="toggleHeatmap">
+                        <i class="bi bi-thermometer-high"></i> Carbon heatmap
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Color-by metric (collapsible) -->
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center card-toggle collapsed"
+                 data-bs-toggle="collapse" data-bs-target="#card-colorby"
+                 aria-expanded="false" aria-controls="card-colorby">
+                <span><i class="bi bi-palette me-1"></i>Color Markers By</span>
+                <i class="bi bi-chevron-down collapse-chev"></i>
+            </div>
+            <div class="collapse" id="card-colorby">
+                <div class="card-body py-2">
+                    <select id="colorBy" class="form-select form-select-sm">
+                        <option value="grade" selected>ESG Grade (default)</option>
+                        <option value="carbon">Carbon YTD (low→high)</option>
+                        <option value="recovery">Waste Recovery Rate</option>
+                        <option value="alerts">Open Alert Count</option>
+                    </select>
+                    <div id="legendBox" class="small mt-2">
+                        <div><span class="legend-dot green"></span>Good</div>
+                        <div class="mt-1"><span class="legend-dot amber"></span>Warning</div>
+                        <div class="mt-1"><span class="legend-dot red"></span>Issue</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters (collapsible) -->
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center card-toggle collapsed"
+                 data-bs-toggle="collapse" data-bs-target="#card-filters"
+                 aria-expanded="false" aria-controls="card-filters">
+                <span><i class="bi bi-funnel me-1"></i>Filters</span>
+                <i class="bi bi-chevron-down collapse-chev"></i>
+            </div>
+            <div class="collapse" id="card-filters">
+                <div class="card-body py-2 small">
+                    <div class="mb-2">
+                        <div class="fw-semibold mb-1">Grade</div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input filter-grade" type="checkbox" value="green" id="fg-green" checked>
+                            <label class="form-check-label" for="fg-green">Good</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input filter-grade" type="checkbox" value="amber" id="fg-amber" checked>
+                            <label class="form-check-label" for="fg-amber">Warn</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input filter-grade" type="checkbox" value="red" id="fg-red" checked>
+                            <label class="form-check-label" for="fg-red">Issue</label>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="fw-semibold mb-1">Region</div>
+                        <div id="regionFilters">
+                            <!-- populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top performers (worst) — collapsible, default open -->
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center card-toggle"
+                 data-bs-toggle="collapse" data-bs-target="#card-topn"
+                 aria-expanded="true" aria-controls="card-topn">
+                <span><i class="bi bi-exclamation-triangle me-1 text-danger"></i>Stores Needing Attention</span>
+                <i class="bi bi-chevron-down collapse-chev"></i>
+            </div>
+            <div class="collapse show" id="card-topn">
+                <div class="card-body py-2" id="topNList">
+                    <div class="text-muted small">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column: map -->
+    <div class="col-lg-9">
+        <div id="esg-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+(function () {
+    // ── Global state ──────────────────────────────────────────────────────
+    const GRADE_COLORS = { green: '#28a745', amber: '#ffc107', red: '#dc3545' };
+    let allStores   = [];
+    let allRegions  = [];
+    let storeMarkers = {};    // id -> Leaflet marker (in cluster)
+    let activeFilters = {
+        grades: new Set(['green', 'amber', 'red']),
+        regions: new Set(),    // filled after data load; empty = all
+    };
+    let colorByMode = 'grade';
+
+    // ── Map + tile layers ─────────────────────────────────────────────────
+    const map = L.map('esg-map', { zoomControl: true }).setView([34.5, 108.0], 4);
+
+    const tileAMap = L.tileLayer(
+        'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+        { maxZoom: 18, subdomains: ['1','2','3','4'],
+          attribution: '&copy; <a href="https://www.amap.com/" target="_blank">AutoNavi</a>' });
+    const tileAMapSat = L.tileLayer(
+        'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+        { maxZoom: 18, subdomains: ['1','2','3','4'],
+          attribution: '&copy; <a href="https://www.amap.com/" target="_blank">AutoNavi Satellite</a>' });
+    const tileCarto = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { maxZoom: 19, subdomains: 'abcd',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>' });
+    const tileOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    });
+
+    tileAMap.addTo(map);
+
+    // Leaflet needs a cue to recompute tile dimensions when the window resizes.
+    // (Left-sidebar collapses don't affect the map column, so no handler needed
+    // for those — the map column keeps its exact size.)
+    window.addEventListener('resize', () => {
+        setTimeout(() => map.invalidateSize(), 120);
+    });
+
+    L.control.layers({
+        'AMap · Streets':   tileAMap,
+        'AMap · Satellite': tileAMapSat,
+        'Carto · Light':    tileCarto,
+        'OpenStreetMap':    tileOSM,
+    }, {}, { position: 'topright', collapsed: true }).addTo(map);
+
+    // ── Layers ────────────────────────────────────────────────────────────
+    const storeCluster = L.markerClusterGroup({
+        showCoverageOnHover: false, maxClusterRadius: 40,
+    });
+    const regionLayer = L.layerGroup();
+    let heatLayer = null;
+
+    // ── Colour scales ─────────────────────────────────────────────────────
+    // Linear interpolation between green → amber → red on a normalised value.
+    function scaleColor(v) {
+        // v in [0,1]  0=good(green) 0.5=amber  1=red
+        const clamp = Math.max(0, Math.min(1, v));
+        const hue = (1 - clamp) * 120;   // 120=green, 60=yellow, 0=red
+        return `hsl(${hue}, 70%, 45%)`;
+    }
+
+    function markerColor(s) {
+        if (colorByMode === 'grade')    return GRADE_COLORS[s.grade];
+        if (colorByMode === 'carbon') {
+            const maxCarbon = Math.max(...allStores.map(x => x.carbon_ytd_kg), 1);
+            return scaleColor(s.carbon_ytd_kg / maxCarbon);
+        }
+        if (colorByMode === 'recovery') {
+            // Higher recovery is better → invert for scale (1-rate/100)
+            return scaleColor(1 - Math.min(s.recovery_rate, 100) / 100);
+        }
+        if (colorByMode === 'alerts') {
+            const maxA = Math.max(...allStores.map(x => x.open_alerts), 1);
+            return scaleColor(s.open_alerts / maxA);
+        }
+        return '#28a745';
+    }
+
+    function makeStoreIcon(s) {
+        const color = markerColor(s);
+        return L.divIcon({
+            className: 'store-marker',
+            html: `<div style="
+                width: 18px; height: 18px;
+                background: ${color};
+                border: 3px solid #fff;
+                border-radius: 50%;
+                box-shadow: 0 0 4px rgba(0,0,0,.4);
+            "></div>`,
+            iconSize: [18, 18], iconAnchor: [9, 9],
+        });
+    }
+
+    function makeRegionIcon(storeCount) {
+        return L.divIcon({
+            className: 'region-marker',
+            html: `<div style="
+                width: 44px; height: 44px;
+                background: rgba(25,135,84,.85);
+                color: #fff;
+                border: 3px solid #fff;
+                border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-weight: 700;
+                box-shadow: 0 0 6px rgba(0,0,0,.4);
+            ">${storeCount}</div>`,
+            iconSize: [44, 44], iconAnchor: [22, 22],
+        });
+    }
+
+    // ── Popups ────────────────────────────────────────────────────────────
+    function storePopupHtml(s) {
+        const gradeLabel = { green: 'Good', amber: 'Warning', red: 'Issue' }[s.grade] || s.grade;
+        const gradeBg    = { green: 'bg-success', amber: 'bg-warning text-dark', red: 'bg-danger' }[s.grade];
+        const trees = Math.round(s.carbon_ytd_kg / 21);
+        return `
+            <div class="store-popup" style="min-width: 240px;">
+                <h6>${s.name}
+                    <span class="badge ${gradeBg} badge-grade">${gradeLabel}</span>
+                </h6>
+                <div class="text-muted small mb-1">
+                    <i class="bi bi-building"></i> ${s.region_name} · ${s.city || '—'}
+                </div>
+                <div class="metric-row">
+                    <span class="label">Carbon YTD</span>
+                    <span class="value">${s.carbon_ytd_kg.toLocaleString()} kg</span>
+                </div>
+                <div class="metric-row">
+                    <span class="label">Waste Recovery</span>
+                    <span class="value">${s.recovery_rate}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="label">Open Alerts</span>
+                    <span class="value ${s.open_alerts ? 'text-danger' : ''}">${s.open_alerts}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="label">🌳 Trees to offset</span>
+                    <span class="value">${trees.toLocaleString()}</span>
+                </div>
+                <div class="mini-chart" id="mc-${s.id}"></div>
+                <a href="/dashboard" class="btn btn-sm btn-outline-success w-100 mt-2">
+                    <i class="bi bi-bar-chart"></i> View Dashboard
+                </a>
+            </div>
+        `;
+    }
+
+    function regionPopupHtml(r) {
+        return `
+            <div class="store-popup" style="min-width: 200px;">
+                <h6><i class="bi bi-geo-alt-fill"></i> ${r.name}</h6>
+                <div class="metric-row">
+                    <span class="label">Stores</span>
+                    <span class="value">${r.store_count}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="label">Carbon Total YTD</span>
+                    <span class="value">${r.carbon_total.toLocaleString()} kg</span>
+                </div>
+                <div class="metric-row">
+                    <span class="label">Open Alerts</span>
+                    <span class="value ${r.open_alerts ? 'text-danger' : ''}">${r.open_alerts}</span>
+                </div>
+                <div class="form-text mt-2">Click to zoom into stores.</div>
+            </div>
+        `;
+    }
+
+    // ── Sparkline chart in popup ──────────────────────────────────────────
+    function renderSparkline(storeId) {
+        const el = document.getElementById('mc-' + storeId);
+        if (!el) return;
+        fetch('/api/map/store-trend?store_id=' + storeId)
+            .then(r => r.json())
+            .then(resp => {
+                if (!resp.success) return;
+                const chart = echarts.init(el);
+                chart.setOption({
+                    grid: { left: 32, right: 8, top: 16, bottom: 18 },
+                    tooltip: { trigger: 'axis', confine: true,
+                               textStyle: { fontSize: 11 } },
+                    legend: { show: false },
+                    xAxis: {
+                        type: 'category',
+                        data: resp.months.map(m => m + '月'),
+                        axisLabel: { fontSize: 9, interval: 1 },
+                    },
+                    yAxis: [
+                        { type: 'value', name: 'kg', nameTextStyle: { fontSize: 9 },
+                          axisLabel: { fontSize: 9 }, splitLine: { show: false } }
+                    ],
+                    series: [{
+                        name: 'Carbon',
+                        type: 'line', smooth: true, symbol: 'circle', symbolSize: 4,
+                        data: resp.carbon,
+                        lineStyle: { color: '#dc3545', width: 2 },
+                        itemStyle: { color: '#dc3545' },
+                        areaStyle: { color: 'rgba(220,53,69,.12)' },
+                    }],
+                });
+            });
+    }
+
+    // ── View mode ─────────────────────────────────────────────────────────
+    function setMode(mode) {
+        if (mode === 'stores') {
+            map.removeLayer(regionLayer);
+            map.addLayer(storeCluster);
+        } else {
+            map.removeLayer(storeCluster);
+            map.addLayer(regionLayer);
+        }
+    }
+
+    // ── Heatmap ───────────────────────────────────────────────────────────
+    function rebuildHeatmap() {
+        if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+        const visible = filteredStores();
+        if (!visible.length) return;
+        const maxC = Math.max(...visible.map(s => s.carbon_ytd_kg), 1);
+        const pts = visible.map(s => [
+            s.lat, s.lng, s.carbon_ytd_kg / maxC,
+        ]);
+        heatLayer = L.heatLayer(pts, {
+            radius: 35, blur: 25, maxZoom: 10,
+            gradient: { 0.2: '#28a745', 0.5: '#ffc107', 0.8: '#fd7e14', 1.0: '#dc3545' },
+        });
+        if (document.getElementById('toggleHeatmap').checked) {
+            heatLayer.addTo(map);
+        }
+    }
+
+    // ── Filtering ─────────────────────────────────────────────────────────
+    function filteredStores() {
+        return allStores.filter(s =>
+            activeFilters.grades.has(s.grade) &&
+            (activeFilters.regions.size === 0 || activeFilters.regions.has(s.region_id))
+        );
+    }
+
+    function applyFilters() {
+        const visible = new Set(filteredStores().map(s => s.id));
+        Object.entries(storeMarkers).forEach(([id, marker]) => {
+            if (visible.has(+id)) {
+                if (!storeCluster.hasLayer(marker)) storeCluster.addLayer(marker);
+            } else {
+                if (storeCluster.hasLayer(marker))  storeCluster.removeLayer(marker);
+            }
+        });
+        rebuildHeatmap();
+        updateKPIs();
+        renderTopN();
+    }
+
+    // ── KPIs ──────────────────────────────────────────────────────────────
+    function updateKPIs() {
+        const visible = filteredStores();
+        document.getElementById('kpi-regions').textContent = allRegions.length;
+        document.getElementById('kpi-stores').textContent  = visible.length;
+        document.getElementById('kpi-alerts').textContent  =
+            visible.reduce((a, s) => a + s.open_alerts, 0);
+        const totalCarbon = visible.reduce((a, s) => a + s.carbon_ytd_kg, 0);
+        document.getElementById('kpi-carbon').textContent =
+            Math.round(totalCarbon).toLocaleString() + ' kg';
+        document.getElementById('kpi-trees').textContent =
+            Math.round(totalCarbon / 21).toLocaleString() + ' trees';
+    }
+
+    // ── Top-N panel: worst-performing stores ──────────────────────────────
+    function renderTopN() {
+        const container = document.getElementById('topNList');
+        const visible = filteredStores();
+        // Score: heavily weight alerts, then low recovery, then high carbon
+        const scored = visible.map(s => ({
+            s, score: s.open_alerts * 100 + (100 - s.recovery_rate) + s.carbon_ytd_kg / 500
+        }));
+        scored.sort((a, b) => b.score - a.score);
+        const top = scored.slice(0, 5);
+        if (!top.length) {
+            container.innerHTML = '<div class="text-muted small">No stores match filters.</div>';
+            return;
+        }
+        container.innerHTML = top.map((it, i) => {
+            const s = it.s;
+            const badge = s.open_alerts > 0 ? `${s.open_alerts} alerts`
+                        : `${s.recovery_rate}% recovery`;
+            return `
+                <div class="topn-item" data-store-id="${s.id}">
+                    <span><span class="rank r${i+1}">${i+1}</span>${s.name}</span>
+                    <span class="value">${badge}</span>
+                </div>`;
+        }).join('');
+        // Click to fly-to
+        container.querySelectorAll('.topn-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = +el.dataset.storeId;
+                flyToStore(id);
+            });
+        });
+    }
+
+    function flyToStore(id) {
+        const s = allStores.find(x => x.id === id);
+        if (!s) return;
+        map.flyTo([s.lat, s.lng], 12, { duration: 0.8 });
+        setTimeout(() => {
+            const marker = storeMarkers[id];
+            if (marker) marker.openPopup();
+        }, 900);
+    }
+
+    // ── Search ────────────────────────────────────────────────────────────
+    const searchInput  = document.getElementById('storeSearch');
+    const searchResults= document.getElementById('searchResults');
+
+    function runSearch(q) {
+        q = q.trim().toLowerCase();
+        if (!q) { searchResults.classList.add('d-none'); return; }
+        const hits = allStores.filter(s =>
+            s.name.toLowerCase().includes(q) ||
+            (s.city || '').toLowerCase().includes(q) ||
+            (s.region_name || '').toLowerCase().includes(q)
+        ).slice(0, 8);
+        if (!hits.length) {
+            searchResults.innerHTML = '<div class="sr-item muted">No matches</div>';
+        } else {
+            searchResults.innerHTML = hits.map(s => `
+                <div class="sr-item" data-id="${s.id}">
+                    ${s.name}<br>
+                    <span class="muted">${s.region_name} · ${s.city || ''}</span>
+                </div>`).join('');
+            searchResults.querySelectorAll('.sr-item[data-id]').forEach(el => {
+                el.addEventListener('click', () => {
+                    flyToStore(+el.dataset.id);
+                    searchInput.value = '';
+                    searchResults.classList.add('d-none');
+                });
+            });
+        }
+        searchResults.classList.remove('d-none');
+    }
+    searchInput.addEventListener('input', e => runSearch(e.target.value));
+    searchInput.addEventListener('blur',  () =>
+        setTimeout(() => searchResults.classList.add('d-none'), 200));
+    searchInput.addEventListener('focus', e => { if (e.target.value) runSearch(e.target.value); });
+
+    // ── Render stores & regions ───────────────────────────────────────────
+    function renderAll() {
+        storeCluster.clearLayers();
+        regionLayer.clearLayers();
+        storeMarkers = {};
+
+        allStores.forEach(s => {
+            const m = L.marker([s.lat, s.lng], { icon: makeStoreIcon(s) });
+            m.bindPopup(storePopupHtml(s));
+            m.on('popupopen', () => renderSparkline(s.id));
+            storeMarkers[s.id] = m;
+        });
+
+        allRegions.forEach(r => {
+            const m = L.marker([r.lat, r.lng], { icon: makeRegionIcon(r.store_count) });
+            m.bindPopup(regionPopupHtml(r));
+            m.on('click', () => map.flyTo([r.lat, r.lng], 7, { duration: 0.8 }));
+            regionLayer.addLayer(m);
+        });
+
+        applyFilters();
+    }
+
+    // ── Region filter UI ──────────────────────────────────────────────────
+    function buildRegionFilters() {
+        const box = document.getElementById('regionFilters');
+        box.innerHTML = allRegions.map(r => `
+            <div class="form-check form-check-inline">
+                <input class="form-check-input filter-region" type="checkbox"
+                       value="${r.id}" id="fr-${r.id}" checked>
+                <label class="form-check-label" for="fr-${r.id}">${r.name.replace(' Region','')}</label>
+            </div>
+        `).join('');
+        activeFilters.regions = new Set(allRegions.map(r => r.id));
+        box.querySelectorAll('.filter-region').forEach(el => {
+            el.addEventListener('change', () => {
+                activeFilters.regions.clear();
+                box.querySelectorAll('.filter-region:checked').forEach(c =>
+                    activeFilters.regions.add(+c.value));
+                applyFilters();
+            });
+        });
+    }
+
+    // ── Event wiring ──────────────────────────────────────────────────────
+    document.querySelectorAll('input[name="viewMode"]').forEach(input => {
+        input.addEventListener('change', e => setMode(e.target.value));
+    });
+
+    document.getElementById('toggleHeatmap').addEventListener('change', e => {
+        if (e.target.checked) {
+            rebuildHeatmap();
+            if (heatLayer) heatLayer.addTo(map);
+        } else if (heatLayer) {
+            map.removeLayer(heatLayer);
+        }
+    });
+
+    document.getElementById('colorBy').addEventListener('change', e => {
+        colorByMode = e.target.value;
+        // Recreate icons for all markers
+        Object.entries(storeMarkers).forEach(([id, m]) => {
+            const s = allStores.find(x => x.id === +id);
+            if (s) m.setIcon(makeStoreIcon(s));
+        });
+        updateLegend();
+    });
+
+    document.querySelectorAll('.filter-grade').forEach(el => {
+        el.addEventListener('change', () => {
+            activeFilters.grades.clear();
+            document.querySelectorAll('.filter-grade:checked').forEach(c =>
+                activeFilters.grades.add(c.value));
+            applyFilters();
+        });
+    });
+
+    function updateLegend() {
+        const box = document.getElementById('legendBox');
+        if (colorByMode === 'grade') {
+            box.innerHTML = `
+                <div><span class="legend-dot green"></span>Good</div>
+                <div class="mt-1"><span class="legend-dot amber"></span>Warning</div>
+                <div class="mt-1"><span class="legend-dot red"></span>Issue</div>`;
+        } else {
+            const labels = {
+                carbon:   ['Low carbon', 'High carbon'],
+                recovery: ['High recovery', 'Low recovery'],
+                alerts:   ['No alerts', 'Many alerts'],
+            }[colorByMode];
+            box.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <span style="width: 100%; height: 8px; background: linear-gradient(to right, hsl(120,70%,45%), hsl(60,70%,45%), hsl(0,70%,45%)); border-radius: 4px;"></span>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <span class="text-muted" style="font-size: .7rem;">${labels[0]}</span>
+                    <span class="text-muted" style="font-size: .7rem;">${labels[1]}</span>
+                </div>`;
+        }
+    }
+
+    // ── Initial load ──────────────────────────────────────────────────────
+    fetch('/api/map/stores')
+        .then(r => r.json())
+        .then(resp => {
+            if (!resp.success) { alert('Failed to load map data'); return; }
+            allStores  = resp.data    || [];
+            allRegions = resp.regions || [];
+
+            buildRegionFilters();
+            renderAll();
+            setMode('stores');
+
+            if (allStores.length) {
+                const bounds = L.latLngBounds(allStores.map(s => [s.lat, s.lng]));
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Map data request failed: ' + err);
+        });
+})();
+</script>
+{% endblock %}

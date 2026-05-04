@@ -77,12 +77,12 @@ def report_generate():
 
     # Gather waste data
     waste_data = query_db(
-        'SELECT wc.name AS category, SUM(wr.weight_kg) AS total_kg, '
+        'SELECT wc.name AS category, wc.is_recyclable, SUM(wr.weight_kg) AS total_kg, '
         'SUM(wr.recycled_kg) AS recycled_kg '
         'FROM waste_record wr '
         'JOIN waste_category wc ON wc.id = wr.category_id '
         f'WHERE wr.store_id IN ({ph}) AND wr.record_date BETWEEN %s AND %s '
-        'GROUP BY wc.name',
+        'GROUP BY wc.name, wc.is_recyclable',
         sid + [date_from, date_to]
     )
 
@@ -183,12 +183,12 @@ def report_export_pdf(report_id):
         (company_id, date_from, date_to)
     )
     waste_data = query_db(
-        'SELECT wc.name AS category, SUM(wr.weight_kg) AS total_kg, '
+        'SELECT wc.name AS category, wc.is_recyclable, SUM(wr.weight_kg) AS total_kg, '
         'SUM(wr.recycled_kg) AS recycled_kg '
         'FROM waste_record wr '
         'JOIN waste_category wc ON wc.id = wr.category_id '
         'WHERE wr.company_id = %s AND wr.record_date BETWEEN %s AND %s '
-        'GROUP BY wc.name',
+        'GROUP BY wc.name, wc.is_recyclable',
         (company_id, date_from, date_to)
     )
     store_count = query_db(

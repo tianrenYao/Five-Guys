@@ -1,0 +1,41 @@
+# systemd unit for the ESG Management Platform (Gunicorn).
+#
+# Place at: /etc/systemd/system/esg.service
+# Then enable + start with:
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now esg
+#     sudo systemctl status esg
+#
+# Replace <PROJECT_PATH> with the absolute path of the cloned repo
+# (e.g. /home/student/Five-Guys). The service expects a Python virtualenv
+# at <PROJECT_PATH>/venv with the project requirements installed.
+
+[Unit]
+Description=ESG Management Platform (Gunicorn)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=student
+Group=student
+
+WorkingDirectory=<PROJECT_PATH>
+EnvironmentFile=<PROJECT_PATH>/.env
+
+ExecStart=<PROJECT_PATH>/venv/bin/gunicorn \
+    --workers 3 \
+    --bind 127.0.0.1:5001 \
+    --access-logfile - \
+    --error-logfile - \
+    'backend.app:app'
+
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
