@@ -87,8 +87,11 @@ async function generateReport(e) {
 
         // Show preview
         if (data.data && data.data.content) {
+            currentReportId = data.data.id;
             document.getElementById('reportContent').textContent = data.data.content;
             document.getElementById('previewCard').classList.remove('d-none');
+            // Hide stale AI section from any previously viewed report
+            document.getElementById('aiCommentSection').classList.add('d-none');
         }
     } else {
         showAlert('reportAlert', (data && data.message) || 'Failed to generate report');

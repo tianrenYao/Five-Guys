@@ -21,3 +21,6 @@ Flask-Mail==0.10.0
 
 # Environment config
 python-dotenv==1.1.0
+
+# CA bundle for outbound HTTPS (DeepSeek API, etc.)
+certifi>=2024.2.2

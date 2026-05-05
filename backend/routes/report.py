@@ -2,7 +2,7 @@ import os
 import io
 import json
 from datetime import datetime
-from flask import Blueprint, request, session, render_template, jsonify, send_file
+from flask import Blueprint, request, session, render_template, jsonify, send_file, current_app
 from backend.utils.db import query_db, execute_db, insert_db
 from backend.utils.auth_helper import login_required, role_required, get_accessible_store_ids
 from backend.utils.native_libs import prepare_macos_weasyprint_runtime
@@ -304,6 +304,12 @@ def report_ai_comment(report_id):
     if api_key:
         try:
             import urllib.request
+            import ssl
+            try:
+                import certifi
+                ssl_context = ssl.create_default_context(cafile=certifi.where())
+            except ImportError:
+                ssl_context = ssl.create_default_context()
             prompt = (
                 'You are a professional ESG sustainability analyst. '
                 'Read the following sustainability report and provide a concise analysis in English '
@@ -329,11 +335,15 @@ def report_ai_comment(report_id):
                 },
                 method='POST'
             )
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with urllib.request.urlopen(req, timeout=20, context=ssl_context) as resp:
                 result = json.loads(resp.read().decode('utf-8'))
                 ai_comment = result['choices'][0]['message']['content'].strip()
-        except Exception:
+            current_app.logger.info('[DeepSeek] AI comment generated (%d chars)', len(ai_comment))
+        except Exception as exc:
+            current_app.logger.error('[DeepSeek] API call failed: %s', exc)
             ai_comment = None
+    else:
+        current_app.logger.warning('[DeepSeek] DEEPSEEK_API_KEY not set — using mock mode')
 
     if not ai_comment:
         is_mock = True
