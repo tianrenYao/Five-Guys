@@ -6,6 +6,7 @@ from flask import Blueprint, request, session, render_template, jsonify, send_fi
 from backend.utils.db import query_db, execute_db, insert_db
 from backend.utils.auth_helper import login_required, role_required, get_accessible_store_ids
 from backend.utils.native_libs import prepare_macos_weasyprint_runtime
+from backend.utils.markdown_helper import render_markdown
 
 report_bp = Blueprint('report', __name__)
 
@@ -135,6 +136,7 @@ def report_detail(report_id):
     report['date_to'] = str(report['date_to']) if report['date_to'] else None
     report['created_at'] = str(report['created_at']) if report['created_at'] else None
     report['updated_at'] = str(report['updated_at']) if report['updated_at'] else None
+    report['ai_comment_html'] = render_markdown(report.get('ai_comment'))
 
     return jsonify({'success': True, 'data': report})
 
@@ -247,6 +249,7 @@ def report_export_pdf(report_id):
     template = env.get_template('report_template.html')
     html_str = template.render(
         report=report,
+        ai_comment_html=render_markdown(report.get('ai_comment')),
         carbon_data=carbon_data,
         waste_data=waste_data,
         total_carbon=total_carbon,
@@ -395,6 +398,7 @@ def report_ai_comment(report_id):
     return jsonify({
         'success': True,
         'ai_comment': ai_comment,
+        'ai_comment_html': render_markdown(ai_comment),
         'is_mock': is_mock
     })
 

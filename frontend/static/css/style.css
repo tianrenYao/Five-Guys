@@ -128,3 +128,55 @@
 .cursor-pointer {
     cursor: pointer;
 }
+
+/* ----------------------------------------
+   AI ESG analysis (markdown-rendered) box
+   ---------------------------------------- */
+.ai-content {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: #333;
+}
+.ai-content > *:first-child { margin-top: 0; }
+.ai-content > *:last-child  { margin-bottom: 0; }
+.ai-content p { margin: 0 0 0.6rem; }
+.ai-content h1,
+.ai-content h2,
+.ai-content h3,
+.ai-content h4 {
+    color: #0f3460;
+    font-weight: 700;
+    margin: 0.85rem 0 0.4rem;
+    line-height: 1.3;
+}
+.ai-content h1 { font-size: 1.05rem; }
+.ai-content h2 { font-size: 1rem; }
+.ai-content h3 { font-size: 0.95rem; }
+.ai-content h4 { font-size: 0.92rem; }
+.ai-content ul,
+.ai-content ol {
+    margin: 0.4rem 0 0.6rem 1.25rem;
+    padding: 0;
+}
+.ai-content li { margin-bottom: 0.2rem; }
+.ai-content strong { color: #0f3460; }
+.ai-content em     { color: #555; }
+.ai-content code {
+    background: #eef2f8;
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.86em;
+    color: #c0392b;
+}
+.ai-content blockquote {
+    border-left: 3px solid #c8d8f8;
+    margin: 0.5rem 0;
+    padding: 0.15rem 0.75rem;
+    color: #555;
+    font-style: italic;
+}
+.ai-content hr {
+    border: 0;
+    border-top: 1px dashed #d0d7e2;
+    margin: 0.8rem 0;
+}

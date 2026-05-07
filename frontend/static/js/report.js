@@ -111,7 +111,7 @@ async function viewReport(id, triggerAi = false) {
     const aiContent = document.getElementById('aiCommentContent');
     const aiBadge   = document.getElementById('aiMockBadge');
     if (data.data.ai_comment) {
-        aiContent.textContent = data.data.ai_comment;
+        aiContent.innerHTML = data.data.ai_comment_html || data.data.ai_comment;
         aiBadge.classList.toggle('d-none', !data.data.ai_comment.includes('Mock Mode'));
         aiSection.classList.remove('d-none');
     } else {
@@ -144,7 +144,7 @@ async function generateAiComment() {
     const aiContent = document.getElementById('aiCommentContent');
     const aiBadge   = document.getElementById('aiMockBadge');
 
-    aiContent.textContent = data.ai_comment;
+    aiContent.innerHTML = data.ai_comment_html || data.ai_comment;
     aiBadge.classList.toggle('d-none', !data.is_mock);
     aiSection.classList.remove('d-none');
 }
