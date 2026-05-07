@@ -421,5 +421,38 @@ for store_id, (kwh, gas, has_transport, recycle_pct) in store_profiles.items():
              f'{label} general waste'),
             label=f'waste[{store_id}] {label} general')
 
+print('\n=== Migration 7: anomaly_review table ===')
+run('''CREATE TABLE IF NOT EXISTS anomaly_review (
+    id              INT PRIMARY KEY AUTO_INCREMENT,
+    company_id      INT          NOT NULL,
+    record_type     ENUM('carbon','waste') NOT NULL,
+    record_id       INT          NOT NULL,
+    store_id        INT          DEFAULT NULL,
+    record_date     DATE         DEFAULT NULL,
+    severity        ENUM('high','medium') DEFAULT 'medium',
+    direction       ENUM('above','below','rule') DEFAULT 'above',
+    value           DECIMAL(14,4) DEFAULT NULL,
+    mean_value      DECIMAL(14,4) DEFAULT NULL,
+    std_value       DECIMAL(14,4) DEFAULT NULL,
+    z_score         DECIMAL(8,3)  DEFAULT NULL,
+    risk_category   VARCHAR(64)   DEFAULT NULL,
+    ai_insight      TEXT          DEFAULT NULL,
+    label           VARCHAR(255)  DEFAULT NULL,
+    note            VARCHAR(255)  DEFAULT NULL,
+    status          ENUM('open','reviewed','false_positive','resolved')
+                    NOT NULL DEFAULT 'open',
+    detected_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by     INT           DEFAULT NULL,
+    reviewed_at     DATETIME      DEFAULT NULL,
+    review_notes    TEXT          DEFAULT NULL,
+    UNIQUE KEY uq_record (record_type, record_id),
+    INDEX idx_anomaly_company (company_id),
+    INDEX idx_anomaly_status  (status),
+    INDEX idx_anomaly_detected (detected_at),
+    FOREIGN KEY (company_id)  REFERENCES company(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES `user`(id)  ON DELETE SET NULL
+) ENGINE=InnoDB COMMENT='AI Anomaly Detection: detected anomalies + LLM insight + review workflow' ''',
+    label='create anomaly_review table')
+
 conn.close()
 print('\n✅ All migrations complete!')
