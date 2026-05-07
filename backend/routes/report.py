@@ -314,13 +314,25 @@ def report_ai_comment(report_id):
             except ImportError:
                 ssl_context = ssl.create_default_context()
             prompt = (
-                'You are a professional ESG sustainability analyst. '
-                'Read the following sustainability report and provide a concise analysis in English '
-                '(around 150-200 words) covering: '
-                '1) Key achievements in carbon reduction and waste management, '
-                '2) Areas of concern or risk, '
-                '3) Specific actionable recommendations for improvement, '
-                '4) Overall ESG performance rating (Excellent / Good / Needs Improvement).\n\n'
+                'You are a professional ESG sustainability analyst.\n\n'
+                'Analyse the sustainability report below and return ONLY a markdown document '
+                'using EXACTLY the four sections, headings and structure shown. Do not add any '
+                'preamble, postscript or text outside these sections.\n\n'
+                '## \u2705 Key Achievements\n'
+                '- 3 to 5 bullet points, each starting with a strong past-tense verb '
+                '(e.g. "Reduced", "Improved", "Achieved").\n'
+                '- Reference concrete metrics from the report and **bold** the key numbers.\n\n'
+                '## \u26a0\ufe0f Areas of Concern\n'
+                '- 3 to 5 bullet points highlighting risks, gaps or under-performance.\n'
+                '- Be specific and quantitative where possible; **bold** the worrying numbers.\n\n'
+                '## \U0001f4a1 Recommendations\n'
+                '- 3 to 5 actionable bullet points, each starting with an imperative verb '
+                '(e.g. "Implement", "Train", "Set", "Audit").\n'
+                '- Each recommendation must address one of the concerns above.\n\n'
+                '## \u2b50 Overall ESG Rating\n'
+                '**Rating:** Excellent | Good | Needs Improvement\n\n'
+                '**Justification:** One concise sentence explaining the rating.\n\n'
+                'Total length: about 180-250 words. Use British English.\n\n'
                 f'Report Content:\n{content[:3000]}'
             )
             payload = json.dumps({
@@ -364,23 +376,52 @@ def report_ai_comment(report_id):
                 except Exception:
                     pass
 
-        carbon_eval = 'within acceptable range' if total_carbon < 5000 else 'elevated and requires attention'
-        recycle_eval = 'commendable' if recovery_rate >= 60 else 'below the recommended 60% target'
-        rating = 'Good' if (total_carbon < 5000 and recovery_rate >= 60) else 'Needs Improvement'
+        carbon_ok = total_carbon < 5000
+        recycle_ok = recovery_rate >= 60
+        rating = 'Good' if (carbon_ok and recycle_ok) else 'Needs Improvement'
+        carbon_eval = 'within the acceptable range' if carbon_ok else 'elevated and requires attention'
+        recycle_eval = 'commendable' if recycle_ok else 'below the recommended 60% target'
+
+        achievements = [
+            f'Tracked **{total_carbon:.1f} kgCO\u2082e** of carbon emissions across all stores, '
+            f'establishing a verifiable ESG baseline.',
+            f'Achieved a recycling rate of **{recovery_rate:.1f}%**, '
+            + ('exceeding the 60% sustainability benchmark.' if recycle_ok
+               else 'providing a clear baseline for future improvement.'),
+            'Operationalised an ESG monitoring infrastructure spanning carbon, waste and reporting.',
+        ]
+
+        concerns = []
+        if not carbon_ok:
+            concerns.append(
+                f'Total emissions of **{total_carbon:.1f} kgCO\u2082e** exceed the internal '
+                f'5,000 kgCO\u2082e threshold, signalling Scope 2 risk.'
+            )
+        if not recycle_ok:
+            concerns.append(
+                f'Recycling rate of **{recovery_rate:.1f}%** falls short of the **60%** target, '
+                f'indicating gaps in waste segregation.'
+            )
+        if not concerns:
+            concerns.append(
+                'Limited visibility into Scope 3 (supplier and logistics) emissions remains a residual risk.'
+            )
+        concerns.append('Manual data entry across multiple stores still introduces consistency risk.')
 
         ai_comment = (
-            f'**AI ESG Analysis (Mock Mode)**\n\n'
-            f'**Carbon Performance:** Total emissions of {total_carbon:.1f} kgCO2e are {carbon_eval}. '
-            f'The company should continue monitoring energy consumption across all store locations '
-            f'and explore renewable energy sourcing options to reduce Scope 2 emissions.\n\n'
-            f'**Waste Management:** The recycling rate of {recovery_rate:.1f}% is {recycle_eval}. '
-            f'Strengthening recycling programmes, particularly for food residue and packaging materials, '
-            f'would contribute significantly to SDG 12 targets.\n\n'
-            f'**Recommendations:** '
-            f'(1) Implement monthly carbon benchmarking per store. '
-            f'(2) Set quarterly waste reduction targets. '
-            f'(3) Train store staff on sustainable disposal practices.\n\n'
-            f'**Overall Rating: {rating}**'
+            '## \u2705 Key Achievements\n'
+            + ''.join(f'- {item}\n' for item in achievements)
+            + '\n## \u26a0\ufe0f Areas of Concern\n'
+            + ''.join(f'- {item}\n' for item in concerns)
+            + '\n## \U0001f4a1 Recommendations\n'
+            '- **Implement** a monthly per-store carbon benchmarking review.\n'
+            '- **Set** quarterly waste-reduction targets aligned with SDG 12.\n'
+            '- **Train** front-line staff on sustainable disposal and segregation practices.\n'
+            '- **Audit** Scope 2 energy procurement and explore renewable sourcing.\n'
+            '\n## \u2b50 Overall ESG Rating\n'
+            f'**Rating:** {rating}\n\n'
+            f'**Justification:** Carbon emissions are {carbon_eval} and the recycling rate is '
+            f'{recycle_eval}, producing an overall **{rating}** outcome.\n'
         )
 
     execute_db(
