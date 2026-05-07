@@ -9,8 +9,10 @@ gunicorn==23.0.0
 
 # PDF report generation (HTML-to-PDF via WeasyPrint)
 weasyprint==62.3
-# weasyprint 62.x is incompatible with pydyf >= 0.11 (transform() removed)
-pydyf==0.10.0
+# Transitive deps pinned — weasyprint 62.3 breaks on newer API versions
+pydyf==0.10.0          # 0.11+ removed .transform() -> AttributeError at write_pdf
+tinycss2==1.3.0        # known-good with weasyprint 62
+cssselect2==0.7.0      # known-good with weasyprint 62
 Jinja2==3.1.4
 
 # Bill OCR (optional: install tesseract-ocr system package separately)
