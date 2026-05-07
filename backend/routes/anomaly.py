@@ -16,7 +16,7 @@ human verdict is preserved across re-detection runs.
 import math
 from collections import defaultdict
 
-from flask import Blueprint, request, session, render_template, jsonify
+from flask import Blueprint, request, session, render_template, jsonify, current_app
 
 from backend.utils.db import query_db, execute_db, insert_db
 from backend.utils.auth_helper import (
@@ -70,6 +70,21 @@ def _zscore_anomalies(records, value_key, label_fn, threshold=2.0):
 # Persistence helpers
 # ──────────────────────────────────────────────
 
+def _clamp_decimal(value, abs_max):
+    """Clamp `value` to [-abs_max, abs_max]; pass-through for None."""
+    if value is None:
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    if v != v:        # NaN guard
+        return None
+    if v >  abs_max: return  abs_max
+    if v < -abs_max: return -abs_max
+    return v
+
+
 def _upsert_review(company_id, record_type, anomaly):
     """Insert a new anomaly_review row OR refresh metrics on an existing OPEN one.
 
@@ -84,11 +99,13 @@ def _upsert_review(company_id, record_type, anomaly):
         (record_type, anomaly['record_id']), one=True
     )
 
+    z_safe = _clamp_decimal(anomaly.get('z_score'), 99999.999)
+
     if existing:
         if existing['status'] == 'open':
             execute_db(
                 'UPDATE anomaly_review SET '
-                '  severity = %s, direction = %s, value = %s, '
+                '  severity = %s, direction = %s, `value` = %s, '
                 '  mean_value = %s, std_value = %s, z_score = %s, '
                 '  label = %s, note = %s, store_id = %s, record_date = %s, '
                 '  detected_at = NOW() '
@@ -99,7 +116,7 @@ def _upsert_review(company_id, record_type, anomaly):
                     anomaly.get('value'),
                     anomaly.get('mean'),
                     anomaly.get('std'),
-                    anomaly.get('z_score'),
+                    z_safe,
                     (anomaly.get('label') or '')[:255],
                     (anomaly.get('note') or '')[:255] or None,
                     anomaly.get('store_id'),
@@ -112,7 +129,7 @@ def _upsert_review(company_id, record_type, anomaly):
     review_id = insert_db(
         'INSERT INTO anomaly_review '
         '(company_id, record_type, record_id, store_id, record_date, '
-        ' severity, direction, value, mean_value, std_value, z_score, '
+        ' severity, direction, `value`, mean_value, std_value, z_score, '
         ' label, note, status) '
         'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
         (
@@ -124,7 +141,7 @@ def _upsert_review(company_id, record_type, anomaly):
             anomaly.get('value'),
             anomaly.get('mean'),
             anomaly.get('std'),
-            anomaly.get('z_score'),
+            z_safe,
             (anomaly.get('label') or '')[:255],
             (anomaly.get('note') or '')[:255] or None,
             'open',
@@ -142,6 +159,33 @@ def _save_ai_insight(review_id, risk_category, insight_markdown, current_status)
         'WHERE id = %s',
         ((risk_category or '')[:64], insight_markdown, review_id)
     )
+
+
+def _clear_stale_ai_insights(company_id, record_type, keep_review_ids):
+    """Clear ai_insight / risk_category from OPEN reviews of this (company, type)
+    that are NOT in ``keep_review_ids``. Preserves closed (human-reviewed) rows.
+
+    Called after each AI run so that only the *current* top-N anomalies retain
+    AI analysis in the DB — previous top-N items demoted out of the ranking get
+    their stale insight stripped.
+    """
+    if keep_review_ids:
+        ph = ','.join(['%s'] * len(keep_review_ids))
+        execute_db(
+            f'UPDATE anomaly_review '
+            f'   SET ai_insight = NULL, risk_category = NULL '
+            f' WHERE company_id = %s AND record_type = %s AND status = %s '
+            f'   AND id NOT IN ({ph})',
+            [company_id, record_type, 'open'] + list(keep_review_ids)
+        )
+    else:
+        # No current top-N → clear all open reviews of this type.
+        execute_db(
+            'UPDATE anomaly_review '
+            '   SET ai_insight = NULL, risk_category = NULL '
+            ' WHERE company_id = %s AND record_type = %s AND status = %s',
+            (company_id, record_type, 'open')
+        )
 
 
 def _attach_saved_insights(anomalies):
@@ -189,6 +233,17 @@ def detect_anomalies():
         threshold  \u2014 z-score threshold (default 2.0)
         enable_ai  \u2014 '1' / 'true' to call DeepSeek for top-N (default off)
     """
+    try:
+        return _detect_anomalies_impl()
+    except Exception as exc:
+        current_app.logger.exception('[anomaly] detect failed')
+        return jsonify({
+            'success': False,
+            'message': f'{type(exc).__name__}: {exc}',
+        }), 500
+
+
+def _detect_anomalies_impl():
     store_ids = get_accessible_store_ids()
     if not store_ids:
         return jsonify({
@@ -310,43 +365,60 @@ def detect_anomalies():
         rid, status = _upsert_review(company_id, 'waste', a)
         a['review_id'], a['review_status'] = rid, status
 
-    # ── Always attach previously-saved AI insights from DB
-    _attach_saved_insights(carbon_anomalies)
-    _attach_saved_insights(waste_anomalies)
+    # ── Only top 3 of each category receive AI insight enrichment; this keeps
+    #    the UI consistent (exactly the highlighted rows are expandable).
+    AI_TOP_N   = 3
+    top_carbon = carbon_anomalies[:AI_TOP_N]
+    top_waste  = waste_anomalies[:AI_TOP_N]
 
-    # ── Optional fresh LLM enrichment for top 10
+    # Attach any previously-saved AI insight ONLY to the current top-N rows.
+    # Rows that were top-N in the past but are no longer will simply have no
+    # ai_insight_html attached, so the frontend shows a "—" dash (no chevron).
+    _attach_saved_insights(top_carbon)
+    _attach_saved_insights(top_waste)
+
+    # ── Optional fresh LLM enrichment: top 3 of EACH section (up to 6 total)
     overall_summary = ''
     used_llm        = False
     if enable_ai:
-        # Build a typed list (carbon vs waste) so the prompt has full context
-        carbon_ids = {a['review_id'] for a in carbon_anomalies}
-        merged     = sorted(
-            carbon_anomalies + waste_anomalies,
-            key=_key, reverse=True,
-        )[:10]
+        # Tag each top item with its type and a synthetic uid so the LLM result
+        # can be unambiguously routed back even when carbon_record.id and
+        # waste_record.id collide.
 
-        prompt_payload = [{
-            'record_id':   a['record_id'],
-            'type':        'carbon' if a['review_id'] in carbon_ids else 'waste',
-            'store':       a['store_name'],
-            'date':        a['record_date'],
-            'value':       a['value'],
-            'mean':        a['mean'],
-            'std':         a['std'],
-            'z_score':     a['z_score'],
-            'severity':    a['severity'],
-            'direction':   a['direction'],
-            'note':        a.get('note'),
-        } for a in merged]
+        def _payload(a, kind):
+            return {
+                'record_id':   f'{kind[0]}-{a["record_id"]}',  # e.g. "c-123" / "w-45"
+                'type':        kind,
+                'store':       a['store_name'],
+                'date':        a['record_date'],
+                'value':       a['value'],
+                'mean':        a['mean'],
+                'std':         a['std'],
+                'z_score':     a['z_score'],
+                'severity':    a['severity'],
+                'direction':   a['direction'],
+                'note':        a.get('note'),
+            }
 
-        result          = generate_anomaly_insights(prompt_payload, top_n=10)
+        prompt_payload = (
+            [_payload(a, 'carbon') for a in top_carbon] +
+            [_payload(a, 'waste')  for a in top_waste]
+        )
+
+        result          = generate_anomaly_insights(prompt_payload, top_n=6)
         overall_summary = result['summary']
         used_llm        = result['used_llm']
         per_record      = result['per_record_insight']
 
-        lookup = {a['record_id']: a for a in carbon_anomalies + waste_anomalies}
+        # Route insights back to the correct list using the type prefix.
+        lookup = {}
+        for a in top_carbon:
+            lookup[f'c-{a["record_id"]}'] = a
+        for a in top_waste:
+            lookup[f'w-{a["record_id"]}'] = a
+
         for rid, ins in per_record.items():
-            anom = lookup.get(rid)
+            anom = lookup.get(str(rid))
             if not anom:
                 continue
             anom['risk_category']    = ins.get('risk_category', '')
@@ -358,6 +430,18 @@ def detect_anomalies():
                 anom['ai_insight'],
                 anom['review_status'],
             )
+
+        # Purge any stale AI insights from open reviews that are no longer in
+        # the current top-N ranking — keeps the "only top 3 are expandable"
+        # invariant consistent in the DB.
+        _clear_stale_ai_insights(
+            company_id, 'carbon',
+            [a['review_id'] for a in top_carbon if a.get('review_id')],
+        )
+        _clear_stale_ai_insights(
+            company_id, 'waste',
+            [a['review_id'] for a in top_waste  if a.get('review_id')],
+        )
 
     summary = {
         'carbon_total_records': len(carbon_rows),

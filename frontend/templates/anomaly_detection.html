@@ -31,7 +31,7 @@
                     <input class="form-check-input" type="checkbox" id="ctrlEnableAI" checked>
                     <label class="form-check-label small" for="ctrlEnableAI">
                         <i class="bi bi-stars text-warning"></i>
-                        Enable AI Insight <span class="text-muted">(slower, ~10–20s)</span>
+                        Enable AI Insight <span class="text-muted">(top 3 per category, ~6–10s)</span>
                     </label>
                 </div>
                 <button class="btn btn-warning btn-sm fw-semibold" onclick="runDetection()">
@@ -105,9 +105,13 @@
                 <i class="bi bi-cloud-haze text-danger fs-5"></i>
                 <h6 class="mb-0">Carbon Emission Anomalies</h6>
                 <span class="badge bg-danger ms-1" id="carbonAnoCount">0</span>
+                <small class="ms-auto text-muted">
+                    <span class="d-inline-block" style="width:8px;height:14px;background:#fffbeb;border-left:3px solid #f59e0b;vertical-align:middle;"></span>
+                    Top 3 with AI insight
+                </small>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive anomaly-table-scroll">
                     <table class="table table-sm mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -136,9 +140,13 @@
                 <i class="bi bi-trash text-warning fs-5"></i>
                 <h6 class="mb-0">Waste Record Anomalies</h6>
                 <span class="badge bg-warning text-dark ms-1" id="wasteAnoCount">0</span>
+                <small class="ms-auto text-muted">
+                    <span class="d-inline-block" style="width:8px;height:14px;background:#fffbeb;border-left:3px solid #f59e0b;vertical-align:middle;"></span>
+                    Top 3 with AI insight
+                </small>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive anomaly-table-scroll">
                     <table class="table table-sm mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -182,6 +190,32 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Fixed-height scrollable anomaly table panels with sticky header. */
+  .anomaly-table-scroll {
+    max-height: 480px;
+    overflow-y: auto;
+  }
+  .anomaly-table-scroll thead.table-light th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+  }
+  /* Chevron icon direction is toggled via JS in handleCollapseEvent()
+     — no CSS rotation here to avoid Bootstrap-icon / cache quirks. */
+  /* Visual highlight on the top-N rows that carry fresh AI insight. */
+  .anomaly-table-scroll tbody tr.anomaly-top-row > td {
+    background: #fffbeb;   /* warm cream tint */
+  }
+  .anomaly-table-scroll tbody tr.anomaly-top-row td:first-child {
+    box-shadow: inset 3px 0 0 #f59e0b;
+  }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 // ── Display helpers ─────────────────────────────────────────────────
@@ -210,6 +244,23 @@ function escapeAnoHtml(s) {
     ));
 }
 
+// ── Chevron toggle via Bootstrap collapse events ────────────────────
+// Swap `.ai-chevron` between bi-chevron-right (collapsed) and bi-chevron-down
+// (expanded). Using event delegation on document so it works for rows
+// dynamically added by renderAnomalies().
+document.addEventListener('show.bs.collapse', (e) => {
+    if (!e.target.classList.contains('ai-insight-row')) return;
+    const btn  = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+    const icon = btn?.querySelector('.ai-chevron');
+    if (icon) icon.classList.replace('bi-chevron-right', 'bi-chevron-down');
+});
+document.addEventListener('hide.bs.collapse', (e) => {
+    if (!e.target.classList.contains('ai-insight-row')) return;
+    const btn  = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+    const icon = btn?.querySelector('.ai-chevron');
+    if (icon) icon.classList.replace('bi-chevron-down', 'bi-chevron-right');
+});
+
 // ── Run detection ───────────────────────────────────────────────────
 async function runDetection() {
     const days      = document.getElementById('ctrlDays').value;
@@ -225,7 +276,8 @@ async function runDetection() {
     );
 
     if (!data || !data.success) {
-        statusEl.textContent = 'Detection failed.';
+        const msg = (data && data.message) ? data.message : 'Detection failed.';
+        statusEl.innerHTML = `<span class="text-danger">${escapeAnoHtml(msg)}</span>`;
         return;
     }
 
@@ -270,6 +322,10 @@ async function runDetection() {
 }
 
 // ── Render one anomaly table ────────────────────────────────────────
+// Top 3 items are already sorted to the top server-side (by severity + |z|),
+// receive AI insight enrichment, and are highlighted with a warm tint.
+const TOP_N = 3;
+
 function renderAnomalies(type, items, unit) {
     const section = document.getElementById(`${type}Section`);
     const tbody   = document.getElementById(`${type}AnoBody`);
@@ -284,7 +340,9 @@ function renderAnomalies(type, items, unit) {
     countEl.textContent   = items.length;
 
     tbody.innerHTML = items.map((a, idx) => {
-        const rowId  = `${type}-row-${idx}`;
+        const rowId    = `${type}-row-${idx}`;
+        const isTopN   = idx < TOP_N;
+        const rowClass = isTopN ? 'anomaly-top-row' : '';
         // Pull category from the label "Store | Category | sub | date"
         const parts    = (a.label || '').split(' | ');
         const category = parts[1] || '';
@@ -303,10 +361,10 @@ function renderAnomalies(type, items, unit) {
 
         const hasInsight = !!a.ai_insight_html;
         const expandBtn = hasInsight
-            ? `<button class="btn btn-sm btn-link p-0 text-decoration-none" type="button"
+            ? `<button class="btn btn-sm btn-link p-0 text-decoration-none ai-toggle-btn" type="button"
                        data-bs-toggle="collapse" data-bs-target="#${rowId}"
-                       aria-expanded="false">
-                  <i class="bi bi-chevron-right"></i>
+                       aria-expanded="false" title="Show / hide AI analysis">
+                  <i class="bi bi-chevron-right ai-chevron"></i>
                </button>`
             : `<span class="text-muted" title="Run with AI Insight enabled to see analysis">
                   <i class="bi bi-dash"></i>
@@ -345,7 +403,7 @@ function renderAnomalies(type, items, unit) {
             : '<em class="text-muted">No AI insight saved. Re-run with “Enable AI Insight” checked.</em>';
 
         return `
-            <tr>
+            <tr class="${rowClass}">
                 <td>${expandBtn}</td>
                 <td class="small fw-semibold">${escapeAnoHtml(a.store_name)}</td>
                 <td class="small text-muted">${escapeAnoHtml(a.record_date)}</td>

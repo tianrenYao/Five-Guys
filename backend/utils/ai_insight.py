@@ -28,7 +28,7 @@ import urllib.error
 # DeepSeek HTTP call (mirrors routes/report.py)
 # ──────────────────────────────────────────────
 
-def _call_deepseek(prompt, max_tokens=1500, timeout=30):
+def _call_deepseek(prompt, max_tokens=700, timeout=30):
     """POST to DeepSeek chat completions. Return text or None on any error."""
     api_key = os.getenv('DEEPSEEK_API_KEY', '')
     if not api_key:
@@ -88,15 +88,16 @@ def _build_anomaly_prompt(anomalies):
         '    }\n'
         '  ]\n'
         '}\n\n'
-        'Each "insight_markdown" must use EXACTLY this structure (UK English, ~60 words total):\n'
+        'Each "insight_markdown" must use EXACTLY this structure (UK English, '
+        'TOTAL <= 35 words across all three sections):\n'
         '### \U0001f50d Likely Cause\n'
-        '<one sentence root-cause hypothesis referencing the value and z-score>\n\n'
+        '<one short clause, max 12 words, referencing value & z-score>\n\n'
         '### \u26a0\ufe0f Risk Category\n'
-        '**<Data Quality | Operational Issue | Fraud Signal>** \u2014 <brief justification>\n\n'
+        '**<Data Quality | Operational Issue | Fraud Signal>** \u2014 <max 6 words justification>\n\n'
         '### \u2705 Recommended Actions\n'
-        '1. <imperative action, e.g. "Verify ...">\n'
-        '2. <imperative action>\n'
-        '3. <imperative action (optional)>\n'
+        '1. <imperative, max 8 words>\n'
+        '2. <imperative, max 8 words>\n'
+        'Keep summary <= 20 words. Do not exceed token budgets \u2014 brevity matters.\n'
     )
 
 
@@ -167,10 +168,11 @@ def _fallback_insight(a):
 # Public API
 # ──────────────────────────────────────────────
 
-def generate_anomaly_insights(anomalies, top_n=10):
+def generate_anomaly_insights(anomalies, top_n=5):
     """Analyse the top-N anomalies with DeepSeek; fill the rest with a fallback.
 
-    Always returns a dict; never raises. Keys are int record_ids.
+    Always returns a dict; never raises. Keys preserve the original
+    record_id type (str or int).
     """
     by_id      = {}
     summary    = ''
@@ -195,7 +197,8 @@ def generate_anomaly_insights(anomalies, top_n=10):
                     rid = item.get('record_id')
                     if rid is None:
                         continue
-                    by_id[int(rid)] = {
+                    # Preserve raw id (string like 'c-123' or plain int).
+                    by_id[rid if isinstance(rid, str) else int(rid)] = {
                         'risk_category':    (item.get('risk_category') or '').strip(),
                         'insight_markdown': (item.get('insight_markdown') or '').strip(),
                     }

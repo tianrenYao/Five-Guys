@@ -70,19 +70,94 @@
 - 门店级数据隔离：`get_accessible_store_ids()` 对所有查询按 Session 范围过滤
 - 侧边栏导航项根据角色动态显示/隐藏
 
+### 9. AI 数据异常检测 [NEW]
+
+- 页面：`/admin/anomaly-detection`，仅 `admin` / `hq_manager` / `region_manager` 可访问
+- **两阶段架构**：
+  - 统计层：按类别分组的 Z-score 偏离检测（阈值可调 1.5σ / 2.0σ / 2.5σ / 3.0σ）+ 硬规则校验（碳排 ≤ 0、回收量 > 总重量等）
+  - AI 层：DeepSeek LLM 为**每个类目的 Top 3 异常**生成三段式分析（Likely Cause / Risk Category / Recommended Actions）+ 一句话整体 Finding
+- **持久化 Review 工作流**：所有异常写入 `anomaly_review` 表；人工可标记为 Open / Reviewed / False Positive / Resolved，跨次检测保留
+- **Top 3 集中展示**：每个栏目只有前 3 行带橙色高亮 + 可展开的 AI 详情；超出 Top 3 的旧 AI 数据会在下次 AI 调用时自动清理
+- **性能控制**：LLM 输出上限 700 tokens、每条约 35 词、预计 6-10 秒；DeepSeek 不可用时自动回退到确定性模板
+- UI：固定高度 480px 的内滚动面板 + Sticky 表头 + 折叠/展开箭头 JS 切换
+
+### 10. ESG 合规评分 [NEW]
+
+- 页面：`/compliance`，管理/总部/区域经理可见
+- 综合 0-100 分，分 5 个维度加权：
+  - 碳管理（30）：数据完整性 + 平均强度
+  - 废弃物与回收（25）：回收率 + 门店覆盖率
+  - 员工培训（20）：覆盖率 + 人均时长
+  - 报告频率（15）：年度生成报告数，目标 4
+  - 预警处理（10）：已解决预警 / 总预警
+- 输出等级 A / B / C / D / F，带彩色徽标和 per-维度明细
+
+### 11. 地理可视化地图 [NEW]
+
+- 页面：`/map`，支持所有已登录角色（按可访问门店过滤）
+- Leaflet 渲染门店标记，按 ESG 表现自动上色：
+  - 绿色：表现良好
+  - 琥珀：回收率偏低或碳排偏高
+  - 红色：未读预警 ≥ 3 或回收率 < 30%
+- 区域层级聚合：按 region 计算质心 + 汇总碳排/预警
+- 标记弹窗显示 YTD 碳排、废弃物回收率、未读预警数
+
+### 12. 供应商 ESG 评估 [NEW]
+
+- 页面：`/supplier`，CRUD 仅 `hq_manager` / `admin`
+- **4 维度 × 4 指标 = 16 项打分卡**：
+  - Carbon（披露 / 目标 / 措施 / 认证）
+  - Waste（政策 / 回收 / 包装 / 追踪）
+  - Ethics（劳工 / 安全 / 工作条件 / 治理）
+  - Reporting（报告 / 完整性 / 频率 / 验证）
+- 每项 0 / 50 / 100 分，加权聚合得 Overall Grade（A-F）
+- 无数据时自动回退到 5 条 Mock 供应商（GreenBean Co. / EcoPack Ltd. 等）便于演示
+
+### 13. ESG 政策管理 [NEW]
+
+- 页面：`/policy`，CRUD 仅 `hq_manager` / `admin`
+- 字段：标题、类别（sdg12 / environment / governance / …）、版本号、生效日期、状态（active / draft / archived）、Markdown 正文
+- 无数据时回退到 3 条 Mock 政策（Responsible Consumption / Carbon Reduction Roadmap / Supplier Code of Conduct）
+
+### 14. 员工可持续发展培训 [NEW]
+
+- 页面：`/training`，所有登录用户可记录，删除权限限制为经理
+- 记录字段：课程名、课程类型（6 类：碳意识 / 废弃物管理 / 能效 / 可持续报告 / 绿色采购 / Other）、门店、受训人、时长、分数、完成日期、状态
+- 年度统计卡：总场次、总学时、唯一受训人、平均分，按课程类型分组
+- 所有创建/删除记录写入 `audit_log`
+
+### 15. 管理员用户管理 [NEW]
+
+- 页面：`/admin/users`，`admin` 平台级、`hq_manager` 仅管本公司
+- 功能：创建用户、改 role / region / store 归属、启用/停用、重置密码、删除
+- 密码使用 `werkzeug` pbkdf2 哈希；禁止删除当前登录账户
+- 所有操作写入 `audit_log`（CREATE / UPDATE / DELETE + IP + 操作人）
+
+### 16. 审计日志查看 [NEW]
+
+- 页面：`/admin/audit-log`，`admin` 看全平台，`hq_manager` 只看本公司
+- 筛选：action（CREATE/UPDATE/DELETE 等）、target_type、起止日期、最多 500 行
+- 额外 API `/api/audit/stats` 提供近 7 天各 action 的计数柱状图数据
+- 数据源：`audit_log` 表，由各模块关键操作自动写入
+
+### 17. 邮件通知 [NEW]
+
+- 模块：`backend/utils/mail.py`，基于 Flask-Mail
+- 预警触发时自动调用 `send_alert_email()`，主题示例："[ESG Alert] Waste Recovery Rate threshold breached — Beijing Chaoyang Store"
+- **Mock 回退**：未配置 `MAIL_SERVER` 时把邮件内容写入 server 日志，保证开发环境也能 demo
+- 当前配置 Mailtrap sandbox（`sandbox.smtp.mailtrap.io`）方便演示
+
 ---
 
 ## 🚧 未完成 / 待实现功能
 
+> 下表中已完成项已全部迁移到上方 ✅ 已完成功能（审计日志 / 用户管理 / 邮件通知 / AI 报告评论 均已落地）。
+
 | 功能 | 状态 | 备注 |
 |---|---|---|
-| **审计日志查看页** | 已分配给组员 | `/admin/audit-log`，只读，仅 hq_manager 可看 |
-| **AI 报告评论** | 后端占位已就绪 | 需要接入 DeepSeek API Key |
-| **真实 OCR** | 安装 Tesseract 后可用 | 需额外安装系统 |
-| **管理员用户管理** | 未开始 | admin 角色的用户 CRUD 页面 |
+| **真实 OCR** | 代码已就绪，需装 Tesseract | 未安装时自动回退 Mock 数据 |
 | **SDG 进度追踪 UI** | 数据库表已就绪 | `company_sdg` 表存在，前端页面未做 |
 | **CSV 导出** | 未开始 | 碳排/废弃物记录导出为 CSV |
-| **邮件通知** | 未开始 | 预警触发时通知相关经理 |
 
 ---
 
