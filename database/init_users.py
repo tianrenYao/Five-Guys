@@ -28,6 +28,7 @@ ACCOUNTS = [
     {'username': 'test_business', 'password': '123456'},
     {'username': 'test_region',   'password': '123456'},
     {'username': 'test_staff',    'password': '123456'},
+    {'username': 'test_admin',    'password': '123456'},
 ]
 
 def main():

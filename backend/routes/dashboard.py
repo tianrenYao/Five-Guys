@@ -268,3 +268,296 @@ def accessible_stores():
         list(store_ids)
     )
     return jsonify({'success': True, 'data': rows})
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Role-specific dashboard widgets
+# ──────────────────────────────────────────────────────────────────────
+
+@dashboard_bp.route('/api/dashboard/staff-view')
+@login_required
+def staff_view():
+    """Store-staff dashboard widget: own store's this-month KPIs + open alerts."""
+    store_id = session.get('store_id')
+    if not store_id:
+        return jsonify({'success': False, 'message': 'No store assigned'}), 400
+
+    # This month carbon + waste + recycling
+    this_month = query_db(
+        'SELECT COALESCE(SUM(total_carbon), 0) AS total '
+        'FROM carbon_record WHERE store_id = %s '
+        'AND YEAR(record_date) = YEAR(CURDATE()) AND MONTH(record_date) = MONTH(CURDATE())',
+        (store_id,), one=True
+    )
+    last_month = query_db(
+        'SELECT COALESCE(SUM(total_carbon), 0) AS total '
+        'FROM carbon_record WHERE store_id = %s '
+        'AND record_date >= DATE_SUB(DATE_FORMAT(CURDATE(),"%%Y-%%m-01"), INTERVAL 1 MONTH) '
+        'AND record_date <  DATE_FORMAT(CURDATE(),"%%Y-%%m-01")',
+        (store_id,), one=True
+    )
+    waste = query_db(
+        'SELECT COALESCE(SUM(weight_kg),0) AS total, COALESCE(SUM(recycled_kg),0) AS recycled '
+        'FROM waste_record WHERE store_id = %s '
+        'AND YEAR(record_date) = YEAR(CURDATE()) AND MONTH(record_date) = MONTH(CURDATE())',
+        (store_id,), one=True
+    )
+
+    c_now  = float(this_month['total'] or 0)
+    c_prev = float(last_month['total'] or 0)
+    mom_pct = round((c_now - c_prev) / c_prev * 100, 1) if c_prev > 0 else None
+
+    w_total    = float(waste['total']    or 0)
+    w_recycled = float(waste['recycled'] or 0)
+    recycle_rate = round(w_recycled / w_total * 100, 1) if w_total > 0 else 0
+
+    # Open alerts (unread) for this store — column aliases keep JSON API stable
+    alerts = query_db(
+        'SELECT id, '
+        '  metric_type     AS alert_type, '
+        '  current_value   AS actual_value, '
+        '  threshold_value, '
+        '  triggered_at    AS created_at '
+        'FROM alert_log WHERE store_id = %s AND is_read = 0 '
+        'ORDER BY triggered_at DESC LIMIT 5',
+        (store_id,)
+    )
+    for a in alerts:
+        a['created_at'] = str(a['created_at']) if a['created_at'] else None
+        a['actual_value']    = float(a['actual_value']    or 0)
+        a['threshold_value'] = float(a['threshold_value'] or 0)
+
+    open_alerts_total = query_db(
+        'SELECT COUNT(*) AS cnt FROM alert_log WHERE store_id = %s AND is_read = 0',
+        (store_id,), one=True
+    )['cnt']
+
+    # Store name for header
+    store = query_db('SELECT name, city FROM store WHERE id = %s', (store_id,), one=True)
+
+    return jsonify({'success': True, 'data': {
+        'store_name':   store['name'] if store else '—',
+        'store_city':   store['city'] if store else '',
+        'carbon_this_month': round(c_now, 2),
+        'carbon_last_month': round(c_prev, 2),
+        'carbon_mom_pct':    mom_pct,
+        'waste_this_month':  round(w_total, 2),
+        'recycle_rate':      recycle_rate,
+        'open_alerts_count': open_alerts_total,
+        'recent_alerts':     alerts,
+    }})
+
+
+@dashboard_bp.route('/api/dashboard/region-leaderboard')
+@login_required
+def region_leaderboard():
+    """Region-manager dashboard: store ranking by recycling rate and carbon (YTD)."""
+    store_ids = get_accessible_store_ids()
+    if not store_ids:
+        return jsonify({'success': True, 'data': {'recycling': [], 'carbon': []}})
+
+    ph  = ','.join(['%s'] * len(store_ids))
+    sid = list(store_ids)
+
+    # Best & worst recycling rate (YTD)
+    recycling = query_db(
+        f'SELECT s.id, s.name AS store_name, r.name AS region_name, '
+        f'  SUM(wr.weight_kg) AS total_kg, '
+        f'  SUM(wr.recycled_kg) AS recycled_kg, '
+        f'  ROUND(SUM(wr.recycled_kg) / NULLIF(SUM(wr.weight_kg),0) * 100, 1) AS rate '
+        f'FROM store s '
+        f'LEFT JOIN region r ON r.id = s.region_id '
+        f'LEFT JOIN waste_record wr ON wr.store_id = s.id '
+        f'  AND YEAR(wr.record_date) = YEAR(CURDATE()) '
+        f'WHERE s.id IN ({ph}) '
+        f'GROUP BY s.id, s.name, r.name '
+        f'ORDER BY rate DESC',
+        sid
+    )
+    # Convert / fill nulls
+    for r in recycling:
+        r['total_kg']    = float(r['total_kg']    or 0)
+        r['recycled_kg'] = float(r['recycled_kg'] or 0)
+        r['rate']        = float(r['rate']        or 0)
+
+    # Highest carbon (YTD)
+    carbon = query_db(
+        f'SELECT s.id, s.name AS store_name, r.name AS region_name, '
+        f'  COALESCE(SUM(cr.total_carbon), 0) AS total_carbon '
+        f'FROM store s '
+        f'LEFT JOIN region r ON r.id = s.region_id '
+        f'LEFT JOIN carbon_record cr ON cr.store_id = s.id '
+        f'  AND YEAR(cr.record_date) = YEAR(CURDATE()) '
+        f'WHERE s.id IN ({ph}) '
+        f'GROUP BY s.id, s.name, r.name '
+        f'ORDER BY total_carbon DESC',
+        sid
+    )
+    for c in carbon:
+        c['total_carbon'] = float(c['total_carbon'] or 0)
+
+    return jsonify({'success': True, 'data': {
+        'recycling': recycling,
+        'carbon':    carbon,
+    }})
+
+
+@dashboard_bp.route('/api/dashboard/risk-watch')
+@login_required
+def risk_watch():
+    """HQ-manager dashboard: high-risk stores (open alerts ≥ 3 / no data this month / carbon spike)."""
+    store_ids = get_accessible_store_ids()
+    if not store_ids:
+        return jsonify({'success': True, 'data': {
+            'high_alert_stores': [], 'silent_stores': [], 'spike_stores': []
+        }})
+
+    ph  = ','.join(['%s'] * len(store_ids))
+    sid = list(store_ids)
+
+    # Stores with ≥3 unread alerts
+    high_alert = query_db(
+        f'SELECT s.id, s.name AS store_name, r.name AS region_name, '
+        f'  COUNT(al.id) AS open_alerts '
+        f'FROM store s '
+        f'LEFT JOIN region r ON r.id = s.region_id '
+        f'JOIN alert_log al ON al.store_id = s.id AND al.is_read = 0 '
+        f'WHERE s.id IN ({ph}) '
+        f'GROUP BY s.id, s.name, r.name '
+        f'HAVING open_alerts >= 3 '
+        f'ORDER BY open_alerts DESC LIMIT 10',
+        sid
+    )
+
+    # Stores with no records this month (either carbon or waste)
+    silent = query_db(
+        f'SELECT s.id, s.name AS store_name, r.name AS region_name '
+        f'FROM store s '
+        f'LEFT JOIN region r ON r.id = s.region_id '
+        f'WHERE s.id IN ({ph}) '
+        f'AND s.id NOT IN ( '
+        f'  SELECT DISTINCT store_id FROM carbon_record '
+        f'  WHERE YEAR(record_date) = YEAR(CURDATE()) '
+        f'  AND MONTH(record_date) = MONTH(CURDATE()) '
+        f') '
+        f'AND s.id NOT IN ( '
+        f'  SELECT DISTINCT store_id FROM waste_record '
+        f'  WHERE YEAR(record_date) = YEAR(CURDATE()) '
+        f'  AND MONTH(record_date) = MONTH(CURDATE()) '
+        f') '
+        f'ORDER BY s.name LIMIT 10',
+        sid
+    )
+
+    # Carbon spike: this month vs last month ≥ +30%
+    spike = query_db(
+        f'SELECT s.id, s.name AS store_name, r.name AS region_name, '
+        f'  COALESCE(SUM(CASE WHEN MONTH(cr.record_date)=MONTH(CURDATE()) '
+        f'    AND YEAR(cr.record_date)=YEAR(CURDATE()) THEN cr.total_carbon END),0) AS this_month, '
+        f'  COALESCE(SUM(CASE WHEN cr.record_date >= DATE_SUB(DATE_FORMAT(CURDATE(),"%%Y-%%m-01"), INTERVAL 1 MONTH) '
+        f'    AND cr.record_date < DATE_FORMAT(CURDATE(),"%%Y-%%m-01") THEN cr.total_carbon END),0) AS last_month '
+        f'FROM store s '
+        f'LEFT JOIN region r ON r.id = s.region_id '
+        f'LEFT JOIN carbon_record cr ON cr.store_id = s.id '
+        f'WHERE s.id IN ({ph}) '
+        f'GROUP BY s.id, s.name, r.name '
+        f'HAVING last_month > 0 AND this_month / last_month >= 1.3 '
+        f'ORDER BY (this_month / last_month) DESC LIMIT 10',
+        sid
+    )
+    for row in spike:
+        row['this_month'] = float(row['this_month'] or 0)
+        row['last_month'] = float(row['last_month'] or 0)
+        row['change_pct'] = round((row['this_month'] - row['last_month']) / row['last_month'] * 100, 1)
+
+    return jsonify({'success': True, 'data': {
+        'high_alert_stores': high_alert,
+        'silent_stores':     silent,
+        'spike_stores':      spike,
+    }})
+
+
+@dashboard_bp.route('/api/dashboard/system-health')
+@login_required
+def system_health():
+    """Admin-only dashboard: platform health (user activity, record volume, recent audit)."""
+    if session.get('role') not in ('admin', 'hq_manager'):
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
+    company_id = session.get('company_id')
+    is_admin   = session.get('role') == 'admin'
+
+    # User activity (active = logged in within 30 days)
+    if is_admin:
+        users = query_db(
+            'SELECT '
+            '  COUNT(*) AS total, '
+            '  SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS enabled, '
+            '  SUM(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS active_30d '
+            'FROM `user`', one=True
+        )
+    else:
+        users = query_db(
+            'SELECT '
+            '  COUNT(*) AS total, '
+            '  SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS enabled, '
+            '  SUM(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS active_30d '
+            'FROM `user` WHERE company_id = %s', (company_id,), one=True
+        )
+
+    # Records created today
+    company_filter = '' if is_admin else 'WHERE company_id = %s'
+    params = () if is_admin else (company_id,)
+    carbon_today = query_db(
+        f'SELECT COUNT(*) AS cnt FROM carbon_record '
+        f'{company_filter}{" AND" if not is_admin else "WHERE"} DATE(created_at) = CURDATE()',
+        params, one=True
+    )
+    waste_today = query_db(
+        f'SELECT COUNT(*) AS cnt FROM waste_record '
+        f'{company_filter}{" AND" if not is_admin else "WHERE"} DATE(created_at) = CURDATE()',
+        params, one=True
+    )
+
+    # Total store / company count (admin only)
+    stores_total = query_db(
+        'SELECT COUNT(*) AS cnt FROM store' if is_admin
+        else 'SELECT COUNT(*) AS cnt FROM store WHERE company_id = %s',
+        () if is_admin else (company_id,), one=True
+    )
+
+    # Latest audit log entries (5 newest)
+    if is_admin:
+        audit = query_db(
+            'SELECT al.id, al.action, al.target_type, al.detail, al.created_at, '
+            '  u.display_name AS actor '
+            'FROM audit_log al LEFT JOIN `user` u ON u.id = al.user_id '
+            'ORDER BY al.created_at DESC LIMIT 5'
+        )
+    else:
+        audit = query_db(
+            'SELECT al.id, al.action, al.target_type, al.detail, al.created_at, '
+            '  u.display_name AS actor '
+            'FROM audit_log al JOIN `user` u ON u.id = al.user_id '
+            'WHERE u.company_id = %s '
+            'ORDER BY al.created_at DESC LIMIT 5', (company_id,)
+        )
+    for a in audit:
+        a['created_at'] = str(a['created_at']) if a['created_at'] else None
+
+    # AI service availability
+    import os
+    ai_configured   = bool(os.getenv('DEEPSEEK_API_KEY'))
+    mail_configured = bool(os.getenv('MAIL_SERVER'))
+
+    return jsonify({'success': True, 'data': {
+        'users_total':      int(users['total']      or 0),
+        'users_enabled':    int(users['enabled']    or 0),
+        'users_active_30d': int(users['active_30d'] or 0),
+        'stores_total':     int(stores_total['cnt'] or 0),
+        'carbon_today':     int(carbon_today['cnt'] or 0),
+        'waste_today':      int(waste_today['cnt']  or 0),
+        'recent_audit':     audit,
+        'ai_configured':    ai_configured,
+        'mail_configured':  mail_configured,
+    }})

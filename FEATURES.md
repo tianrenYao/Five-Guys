@@ -149,15 +149,54 @@
 
 ---
 
+### 18. CSV 导入 / 导出 [NEW]
+
+- **导出**：`/api/carbon/export-csv` 和 `/api/waste/export-csv`，与列表共用同一套过滤参数（store_id / date_from / date_to）；前端在碳追踪 & 废弃物管理页的工具栏上有 `Export CSV` 按钮
+- **导入**：`/api/carbon/import` 和 `/api/waste/import` 接受 CSV 或 Excel（pandas 解析），含模板下载 `/api/carbon/import-template`
+- 行级错误回显（"Row 5: Store XX not found"）；批量结果以 audit log 记录
+
+### 19. 角色化 Dashboard [NEW]
+
+- 顶部 **Role Banner** 显示当前用户姓名 + 角色徽章；下方主体根据 `window.userRole` 渲染对应子卡片
+- 后端新增 4 个 API：`/api/dashboard/staff-view`、`/region-leaderboard`、`/risk-watch`、`/system-health`，同样走 `get_accessible_store_ids()` 过滤
+- 子视图分布：
+  - **Store Staff**：`Open Alerts` 卡片列出本店所有未读预警（限高 300px + 内滚动）
+  - **Region Manager**：`Recycling Rate Leaderboard (YTD)` + `Carbon Emissions Ranking (YTD)` 两个排行榜，限高 + Sticky 表头
+  - **HQ Manager**：`High-Alert Stores` / `Carbon Spike` / `Silent Stores` 三张风险卡片，全部限高滚动
+  - **Admin**：`System Health` 展示活跃用户数、最近 24h 审计动作、待处理预警
+- 与原有 KPI 概览 / ECharts 趋势图共存，互不干扰
+
+### 20. 侧边栏分组导航 [NEW]
+
+- 基于 Bootstrap 5 `collapse` 把侧边栏归为四组：**Reporting / Operations / Governance / Admin**
+- 当前请求路径自动展开所属组（Jinja 模板侧判断），无匹配时默认折叠
+- 用户展开/收起状态写入 `localStorage`，跨页刷新保留
+- Chevron 图标随状态旋转 180°，CSS transition 平滑过渡
+
+### 21. 演示数据回填工具 [NEW]
+
+- 脚本：`database/backfill_recent_data.py`，命令行参数 `--from` / `--to` / `--seed` / `--dry-run` / `--purge-recent` / `--inject-*`
+- **7 个 Phase**：
+  - Phase 1 — 把已有的 4 月 1-7 日 partial 数据 ×4 升级为全月（note 加 `(full)` 标记防重复）
+  - Phase 2 — 5 月 / 6 月 carbon + waste 全 518 店覆盖（避开 silent 店、跳过已存在 `(store, date)`）
+  - Phase 3 — 5 条 ANOMALY 标记的离群电力记录（≈ 6× baseline，散布在 5 月）
+  - Phase 4 — 8 家店各 3-5 条未读预警（指标轮换：回收率 / 碳排尖峰 / 能耗 / 用水）
+  - Phase 5 — 12 条 Sustainability Report（store / region / company 三种 scope 混合）
+  - Phase 6 — Apr-28 waste 全店补缺，保证 4 月回收率可计算
+  - Phase 7 — 给 5 家 spike 店在 5 / 6 月各加 1 条 `BACKFILL_PEAK` 高负载电力记录，5 月碳排相对 4 月放大到 +76% ~ +524%
+- **完全幂等**：用 note 标记 + `(store_id, date)` 集合双重去重，可反复执行不重复插入
+- 一行 `python3 database/backfill_recent_data.py --purge-recent` 即可清空回滚
+
+---
+
 ## 🚧 未完成 / 待实现功能
 
-> 下表中已完成项已全部迁移到上方 ✅ 已完成功能（审计日志 / 用户管理 / 邮件通知 / AI 报告评论 均已落地）。
+> 下表中已完成项已全部迁移到上方 ✅ 已完成功能（审计日志 / 用户管理 / 邮件通知 / AI 报告评论 / CSV 导入导出 均已落地）。
 
 | 功能 | 状态 | 备注 |
 |---|---|---|
 | **真实 OCR** | 代码已就绪，需装 Tesseract | 未安装时自动回退 Mock 数据 |
 | **SDG 进度追踪 UI** | 数据库表已就绪 | `company_sdg` 表存在，前端页面未做 |
-| **CSV 导出** | 未开始 | 碳排/废弃物记录导出为 CSV |
 
 ---
 
@@ -176,6 +215,7 @@
 
 | 用户名 | 角色 | 可访问范围 |
 |---|---|---|
+| `test_admin` | 平台管理员 | 全平台，含用户管理 / 审计日志 / System Health |
 | `test_business` | 总部 ESG 经理 | 全部 6 家门店，全功能 |
 | `test_region` | 华北区域经理 | 北京朝阳店 + 北京海淀店 |
 | `test_staff` | 门店员工 | 仅北京朝阳店 |
