@@ -183,9 +183,9 @@
 | ID | 任务 | 优先级 | 体量 | 页数变动 | 状态 |
 |---|---|---|---|---|---|
 | 0 | Setup（已完成） | — | — | — | ✅ |
-| A1 | User Abstract 加 v2 句 | HIGH | XS | +0 | ⏳ |
-| A2 | User §2.2 加 test_admin | HIGH | XS | +0 | ⏳ |
-| A3 | User §2.3 加分组折叠 | LOW | XS | +0 | ⏳ |
+| A1 | User Abstract 加 v2 句 | HIGH | XS | +0 | ✅ |
+| A2 | User §2.2 加 test_admin | HIGH | XS | +0 | ✅ |
+| A3 | User §2.3 加分组折叠 | LOW | XS | +0 | ✅ |
 | A4 | User §3 矩阵补 v2 页面 | MEDIUM | S | +0 | ⏳ |
 | A5 | User §4.1 加 Role-Specific Cards | HIGH | M | +0.3 | ⏳ |
 | A6 | User §4 共享流程精简 | MEDIUM | S | −0.4 | ⏳ |

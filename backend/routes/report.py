@@ -24,7 +24,8 @@ def report_list():
     company_id = session['company_id']
     rows = query_db(
         'SELECT r.id, r.title, r.report_type, r.date_from, r.date_to, '
-        'r.status, r.pdf_path, r.created_at, u.display_name AS created_by '
+        'r.status, r.pdf_path, r.created_at, r.comment_source, '
+        'u.display_name AS created_by '
         'FROM report r '
         'LEFT JOIN `user` u ON u.id = r.user_id '
         'WHERE r.company_id = %s ORDER BY r.created_at DESC',
@@ -50,6 +51,9 @@ def report_generate():
     report_type = data.get('report_type', 'monthly')
     date_from = data.get('date_from')
     date_to = data.get('date_to')
+    # Whether to call AI to generate the evaluation. Defaults to True (legacy behaviour).
+    # When False, a deterministic rule-based template is used instead.
+    use_ai = bool(data.get('use_ai', True))
 
     if not all([title, date_from, date_to]):
         return jsonify({'success': False, 'message': 'title, date_from, and date_to are required'}), 400
@@ -99,23 +103,40 @@ def report_generate():
         total_carbon, total_waste, recovery_rate
     )
 
+    # Generate the evaluation synchronously, either by calling AI or by rule-based template.
+    # `comment_source` records which path was actually taken (AI may silently fall back to template).
+    if use_ai:
+        ai_comment, comment_source = _build_ai_comment(content)
+    else:
+        ai_comment = _build_template_comment(content)
+        comment_source = 'template'
+
     report_id = insert_db(
-        'INSERT INTO report (company_id, user_id, title, report_type, date_from, date_to, content, status) '
-        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-        (company_id, session['user_id'], title, report_type, date_from, date_to, content, 'generated')
+        'INSERT INTO report (company_id, user_id, title, report_type, date_from, date_to, '
+        'content, ai_comment, comment_source, status) '
+        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+        (company_id, session['user_id'], title, report_type, date_from, date_to,
+         content, ai_comment, comment_source, 'generated')
     )
 
     execute_db(
         'INSERT INTO audit_log (user_id, action, target_type, target_id, detail, ip_address) '
         'VALUES (%s, %s, %s, %s, %s, %s)',
         (session['user_id'], 'CREATE', 'report', report_id,
-         f'Generated report: {title}', request.remote_addr)
+         f'Generated report: {title} (evaluation source: {comment_source})', request.remote_addr)
     )
 
     return jsonify({
         'success': True,
         'message': 'Report generated successfully',
-        'data': {'id': report_id, 'content': content}
+        'data': {
+            'id': report_id,
+            'content': content,
+            'ai_comment': ai_comment,
+            'ai_comment_html': render_markdown(ai_comment),
+            'comment_source': comment_source,
+            'ai_fallback_to_template': bool(use_ai and comment_source == 'template'),
+        }
     }), 201
 
 
@@ -250,6 +271,7 @@ def report_export_pdf(report_id):
     html_str = template.render(
         report=report,
         ai_comment_html=render_markdown(report.get('ai_comment')),
+        comment_source=report.get('comment_source') or 'ai',
         carbon_data=carbon_data,
         waste_data=waste_data,
         total_carbon=total_carbon,
@@ -289,7 +311,13 @@ def report_export_pdf(report_id):
 @login_required
 @role_required('hq_manager', 'admin')
 def report_ai_comment(report_id):
-    """Generate an AI comment for the report using DeepSeek API (with mock fallback)."""
+    """(Re-)generate the AI evaluation for an existing report using DeepSeek API.
+
+    This endpoint is kept for backwards compatibility and for users who want to
+    upgrade a template-based report to an AI-based evaluation after the fact.
+    The core logic now lives in `_build_ai_comment` so behaviour matches the
+    inline generation path used by `/api/report/generate`.
+    """
     report = query_db(
         'SELECT * FROM report WHERE id = %s AND company_id = %s',
         (report_id, session['company_id']), one=True
@@ -298,148 +326,27 @@ def report_ai_comment(report_id):
         return jsonify({'success': False, 'message': 'Report not found'}), 404
 
     content = report.get('content', '') or ''
-
-    # Try DeepSeek API first
-    api_key = os.getenv('DEEPSEEK_API_KEY', '')
-    ai_comment = None
-    is_mock = False
-
-    if api_key:
-        try:
-            import urllib.request
-            import ssl
-            try:
-                import certifi
-                ssl_context = ssl.create_default_context(cafile=certifi.where())
-            except ImportError:
-                ssl_context = ssl.create_default_context()
-            prompt = (
-                'You are a professional ESG sustainability analyst.\n\n'
-                'Analyse the sustainability report below and return ONLY a markdown document '
-                'using EXACTLY the four sections, headings and structure shown. Do not add any '
-                'preamble, postscript or text outside these sections.\n\n'
-                '## \u2705 Key Achievements\n'
-                '- 3 to 5 bullet points, each starting with a strong past-tense verb '
-                '(e.g. "Reduced", "Improved", "Achieved").\n'
-                '- Reference concrete metrics from the report and **bold** the key numbers.\n\n'
-                '## \u26a0\ufe0f Areas of Concern\n'
-                '- 3 to 5 bullet points highlighting risks, gaps or under-performance.\n'
-                '- Be specific and quantitative where possible; **bold** the worrying numbers.\n\n'
-                '## \U0001f4a1 Recommendations\n'
-                '- 3 to 5 actionable bullet points, each starting with an imperative verb '
-                '(e.g. "Implement", "Train", "Set", "Audit").\n'
-                '- Each recommendation must address one of the concerns above.\n\n'
-                '## \u2b50 Overall ESG Rating\n'
-                '**Rating:** Excellent | Good | Needs Improvement\n\n'
-                '**Justification:** One concise sentence explaining the rating.\n\n'
-                'Total length: about 180-250 words. Use British English.\n\n'
-                f'Report Content:\n{content[:3000]}'
-            )
-            payload = json.dumps({
-                'model': 'deepseek-chat',
-                'messages': [{'role': 'user', 'content': prompt}],
-                'max_tokens': 400,
-                'temperature': 0.7
-            }).encode('utf-8')
-            req = urllib.request.Request(
-                'https://api.deepseek.com/v1/chat/completions',
-                data=payload,
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {api_key}'
-                },
-                method='POST'
-            )
-            with urllib.request.urlopen(req, timeout=20, context=ssl_context) as resp:
-                result = json.loads(resp.read().decode('utf-8'))
-                ai_comment = result['choices'][0]['message']['content'].strip()
-            current_app.logger.info('[DeepSeek] AI comment generated (%d chars)', len(ai_comment))
-        except Exception as exc:
-            current_app.logger.error('[DeepSeek] API call failed: %s', exc)
-            ai_comment = None
-    else:
-        current_app.logger.warning('[DeepSeek] DEEPSEEK_API_KEY not set — using mock mode')
-
-    if not ai_comment:
-        is_mock = True
-        total_carbon = 0
-        recovery_rate = 0
-        for line in content.split('\n'):
-            if 'Total Carbon Emissions:' in line:
-                try:
-                    total_carbon = float(line.split(':')[1].strip().split()[0])
-                except Exception:
-                    pass
-            if 'Recycling Rate:' in line:
-                try:
-                    recovery_rate = float(line.split(':')[1].strip().replace('%', ''))
-                except Exception:
-                    pass
-
-        carbon_ok = total_carbon < 5000
-        recycle_ok = recovery_rate >= 60
-        rating = 'Good' if (carbon_ok and recycle_ok) else 'Needs Improvement'
-        carbon_eval = 'within the acceptable range' if carbon_ok else 'elevated and requires attention'
-        recycle_eval = 'commendable' if recycle_ok else 'below the recommended 60% target'
-
-        achievements = [
-            f'Tracked **{total_carbon:.1f} kgCO\u2082e** of carbon emissions across all stores, '
-            f'establishing a verifiable ESG baseline.',
-            f'Achieved a recycling rate of **{recovery_rate:.1f}%**, '
-            + ('exceeding the 60% sustainability benchmark.' if recycle_ok
-               else 'providing a clear baseline for future improvement.'),
-            'Operationalised an ESG monitoring infrastructure spanning carbon, waste and reporting.',
-        ]
-
-        concerns = []
-        if not carbon_ok:
-            concerns.append(
-                f'Total emissions of **{total_carbon:.1f} kgCO\u2082e** exceed the internal '
-                f'5,000 kgCO\u2082e threshold, signalling Scope 2 risk.'
-            )
-        if not recycle_ok:
-            concerns.append(
-                f'Recycling rate of **{recovery_rate:.1f}%** falls short of the **60%** target, '
-                f'indicating gaps in waste segregation.'
-            )
-        if not concerns:
-            concerns.append(
-                'Limited visibility into Scope 3 (supplier and logistics) emissions remains a residual risk.'
-            )
-        concerns.append('Manual data entry across multiple stores still introduces consistency risk.')
-
-        ai_comment = (
-            '## \u2705 Key Achievements\n'
-            + ''.join(f'- {item}\n' for item in achievements)
-            + '\n## \u26a0\ufe0f Areas of Concern\n'
-            + ''.join(f'- {item}\n' for item in concerns)
-            + '\n## \U0001f4a1 Recommendations\n'
-            '- **Implement** a monthly per-store carbon benchmarking review.\n'
-            '- **Set** quarterly waste-reduction targets aligned with SDG 12.\n'
-            '- **Train** front-line staff on sustainable disposal and segregation practices.\n'
-            '- **Audit** Scope 2 energy procurement and explore renewable sourcing.\n'
-            '\n## \u2b50 Overall ESG Rating\n'
-            f'**Rating:** {rating}\n\n'
-            f'**Justification:** Carbon emissions are {carbon_eval} and the recycling rate is '
-            f'{recycle_eval}, producing an overall **{rating}** outcome.\n'
-        )
+    ai_comment, comment_source = _build_ai_comment(content)
+    is_mock = (comment_source == 'template')
 
     execute_db(
-        'UPDATE report SET ai_comment = %s WHERE id = %s',
-        (ai_comment, report_id)
+        'UPDATE report SET ai_comment = %s, comment_source = %s WHERE id = %s',
+        (ai_comment, comment_source, report_id)
     )
 
     execute_db(
         'INSERT INTO audit_log (user_id, action, target_type, target_id, detail, ip_address) '
         'VALUES (%s, %s, %s, %s, %s, %s)',
         (session['user_id'], 'UPDATE', 'report', report_id,
-         f'Generated AI comment for report #{report_id}', request.remote_addr)
+         f'Generated AI comment for report #{report_id} (source: {comment_source})',
+         request.remote_addr)
     )
 
     return jsonify({
         'success': True,
         'ai_comment': ai_comment,
         'ai_comment_html': render_markdown(ai_comment),
+        'comment_source': comment_source,
         'is_mock': is_mock
     })
 
@@ -519,3 +426,161 @@ def _build_report_content(title, date_from, date_to, carbon_data, waste_data,
     ])
 
     return '\n'.join(lines)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evaluation generators
+#
+# Two evaluation paths are supported and are selected by the caller via the
+# ``use_ai`` flag on ``POST /api/report/generate``:
+#
+#   * ``_build_ai_comment(content)``       — calls DeepSeek; silently falls back
+#                                            to the rule-based template if the
+#                                            API key is missing or the call fails.
+#                                            Returns (text, source) where source
+#                                            is ``'ai'`` on success or
+#                                            ``'template'`` on fallback.
+#   * ``_build_template_comment(content)`` — purely rule-based; no network call.
+#                                            Returns the markdown text only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _build_template_comment(content: str) -> str:
+    """Rule-based evaluation built from the report's textual summary.
+
+    Parses ``Total Carbon Emissions`` and ``Recycling Rate`` out of the content,
+    then assembles a markdown document with the same four-section structure as
+    the AI-generated variant. Pure function, no I/O, fully deterministic.
+    """
+    total_carbon = 0.0
+    recovery_rate = 0.0
+    for line in content.split('\n'):
+        if 'Total Carbon Emissions:' in line:
+            try:
+                total_carbon = float(line.split(':')[1].strip().split()[0])
+            except Exception:
+                pass
+        if 'Recycling Rate:' in line:
+            try:
+                recovery_rate = float(line.split(':')[1].strip().replace('%', ''))
+            except Exception:
+                pass
+
+    carbon_ok = total_carbon < 5000
+    recycle_ok = recovery_rate >= 60
+    rating = 'Good' if (carbon_ok and recycle_ok) else 'Needs Improvement'
+    carbon_eval = 'within the acceptable range' if carbon_ok else 'elevated and requires attention'
+    recycle_eval = 'commendable' if recycle_ok else 'below the recommended 60% target'
+
+    achievements = [
+        f'Tracked **{total_carbon:.1f} kgCO\u2082e** of carbon emissions across all stores, '
+        f'establishing a verifiable ESG baseline.',
+        f'Achieved a recycling rate of **{recovery_rate:.1f}%**, '
+        + ('exceeding the 60% sustainability benchmark.' if recycle_ok
+           else 'providing a clear baseline for future improvement.'),
+        'Operationalised an ESG monitoring infrastructure spanning carbon, waste and reporting.',
+    ]
+
+    concerns = []
+    if not carbon_ok:
+        concerns.append(
+            f'Total emissions of **{total_carbon:.1f} kgCO\u2082e** exceed the internal '
+            f'5,000 kgCO\u2082e threshold, signalling Scope 2 risk.'
+        )
+    if not recycle_ok:
+        concerns.append(
+            f'Recycling rate of **{recovery_rate:.1f}%** falls short of the **60%** target, '
+            f'indicating gaps in waste segregation.'
+        )
+    if not concerns:
+        concerns.append(
+            'Limited visibility into Scope 3 (supplier and logistics) emissions remains a residual risk.'
+        )
+    concerns.append('Manual data entry across multiple stores still introduces consistency risk.')
+
+    return (
+        '## \u2705 Key Achievements\n'
+        + ''.join(f'- {item}\n' for item in achievements)
+        + '\n## \u26a0\ufe0f Areas of Concern\n'
+        + ''.join(f'- {item}\n' for item in concerns)
+        + '\n## \U0001f4a1 Recommendations\n'
+        '- **Implement** a monthly per-store carbon benchmarking review.\n'
+        '- **Set** quarterly waste-reduction targets aligned with SDG 12.\n'
+        '- **Train** front-line staff on sustainable disposal and segregation practices.\n'
+        '- **Audit** Scope 2 energy procurement and explore renewable sourcing.\n'
+        '\n## \u2b50 Overall ESG Rating\n'
+        f'**Rating:** {rating}\n\n'
+        f'**Justification:** Carbon emissions are {carbon_eval} and the recycling rate is '
+        f'{recycle_eval}, producing an overall **{rating}** outcome.\n'
+    )
+
+
+def _build_ai_comment(content: str):
+    """Generate an evaluation by calling the DeepSeek chat completion API.
+
+    Returns a tuple ``(text, source)`` where ``source`` is ``'ai'`` when the
+    API call succeeds and ``'template'`` when the call falls back to the
+    deterministic rule-based generator (no API key, network error, etc.).
+    """
+    api_key = os.getenv('DEEPSEEK_API_KEY', '')
+    if not api_key:
+        current_app.logger.warning(
+            '[DeepSeek] DEEPSEEK_API_KEY not set \u2014 falling back to rule-based template'
+        )
+        return _build_template_comment(content), 'template'
+
+    try:
+        import urllib.request
+        import ssl
+        try:
+            import certifi
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            ssl_context = ssl.create_default_context()
+
+        prompt = (
+            'You are a professional ESG sustainability analyst.\n\n'
+            'Analyse the sustainability report below and return ONLY a markdown document '
+            'using EXACTLY the four sections, headings and structure shown. Do not add any '
+            'preamble, postscript or text outside these sections.\n\n'
+            '## \u2705 Key Achievements\n'
+            '- 3 to 5 bullet points, each starting with a strong past-tense verb '
+            '(e.g. "Reduced", "Improved", "Achieved").\n'
+            '- Reference concrete metrics from the report and **bold** the key numbers.\n\n'
+            '## \u26a0\ufe0f Areas of Concern\n'
+            '- 3 to 5 bullet points highlighting risks, gaps or under-performance.\n'
+            '- Be specific and quantitative where possible; **bold** the worrying numbers.\n\n'
+            '## \U0001f4a1 Recommendations\n'
+            '- 3 to 5 actionable bullet points, each starting with an imperative verb '
+            '(e.g. "Implement", "Train", "Set", "Audit").\n'
+            '- Each recommendation must address one of the concerns above.\n\n'
+            '## \u2b50 Overall ESG Rating\n'
+            '**Rating:** Excellent | Good | Needs Improvement\n\n'
+            '**Justification:** One concise sentence explaining the rating.\n\n'
+            'Total length: about 180-250 words. Use British English.\n\n'
+            f'Report Content:\n{content[:3000]}'
+        )
+        payload = json.dumps({
+            'model': 'deepseek-chat',
+            'messages': [{'role': 'user', 'content': prompt}],
+            'max_tokens': 400,
+            'temperature': 0.7
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.deepseek.com/v1/chat/completions',
+            data=payload,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            },
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=20, context=ssl_context) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+            ai_comment = result['choices'][0]['message']['content'].strip()
+        current_app.logger.info('[DeepSeek] AI comment generated (%d chars)', len(ai_comment))
+        return ai_comment, 'ai'
+
+    except Exception as exc:
+        current_app.logger.error('[DeepSeek] API call failed: %s', exc)
+        return _build_template_comment(content), 'template'

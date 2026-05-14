@@ -19,6 +19,11 @@
 \usepackage{setspace}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
+% v2 revision highlighting — remove \new wrapper + \rowcolor lines before final PDF
+\usepackage{soul}
+\usepackage{colortbl}
+\sethlcolor{yellow}
+\newcommand{\new}[1]{\hl{#1}}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.4\baselineskip}
@@ -70,9 +75,9 @@
 \normalsize
 
 \section*{Abstract}
-This user documentation explains how different users interact with the Business Sustainability Management Platform in practice. The platform supports sustainability operations and ESG management through role-based access, and its sustainability focus is anchored around SDG 12 (Responsible Consumption and Production), connecting day-to-day operational data to company-level sustainability goal tracking. Core functions covered include dashboard review, carbon tracking, waste management, report generation, staff training records, ESG management, and several monitoring tools.
+This user documentation explains how different users interact with the Business Sustainability Management Platform in practice. The platform supports sustainability operations and ESG management through role-based access, and its sustainability focus is anchored around SDG 12 (Responsible Consumption and Production), connecting day-to-day operational data to company-level sustainability goal tracking. Core functions covered include dashboard review, carbon tracking, waste management, report generation, staff training records, ESG management, and several monitoring tools. \new{The current version additionally introduces role-specific dashboard layouts tailored to each user type, a 218-store demonstration dataset for realistic cross-store comparison, CSV-based bulk import and export for operational records, and OCR-assisted bill scanning that helps prefill carbon entry forms.}
 
-The platform supports four user roles: \rolelabel{Store Staff}, who record daily carbon and waste data for their own store; \rolelabel{Region Manager}, who monitor performance across their assigned region; \rolelabel{HQ Manager}, who configure thresholds, manage ESG governance content, and maintain company-wide data; and \rolelabel{Admin}, who hold the broadest authority. This document covers login and navigation first, followed by shared workflows, and then role-specific guidance for each user type.
+The platform supports four user roles: \rolelabel{Store Staff}, who record daily carbon and waste data for their own store; \rolelabel{Region Manager}, who monitor performance across their assigned region; \rolelabel{HQ Manager}, who configure thresholds, manage ESG governance content, and maintain company-wide data; and \rolelabel{Admin}, who hold the broadest authority. This document covers login and navigation first, followed by shared workflows, and then role-specific guidance for each user type, \new{and concludes with a hands-on tutorial for new users who wish to follow a guided walkthrough.}
 
 
 \section{Getting Started}
@@ -92,20 +97,21 @@ The following pre-configured accounts are available for testing. All accounts us
 
 \begin{table}[H]
 \centering\small
-\begin{tabularx}{0.82\linewidth}{@{}lllX@{}}
+\begin{tabularx}{0.90\linewidth}{@{}lllX@{}}
 \toprule
 \textbf{Username} & \textbf{Password} & \textbf{Role} & \textbf{Access Scope} \\
 \midrule
-testbusiness & 123456 & HQ Manager & Full company-wide management \\
-testregion & 123456 & Region Manager & Assigned region monitoring \\
-teststaff & 123456 & Store Staff & Own store data entry \\
+\rowcolor{yellow!40}\texttt{test\_admin}    & 123456 & Admin          & Platform-wide: user management and audit log across all companies \\
+\texttt{test\_business} & 123456 & HQ Manager     & Full company-wide management and ESG governance \\
+\texttt{test\_region}   & 123456 & Region Manager & Assigned region monitoring and cross-store comparison \\
+\texttt{test\_staff}    & 123456 & Store Staff    & Own store data entry and operational records \\
 \bottomrule
 \end{tabularx}
 \caption{Pre-configured test accounts}
 \end{table}
 
 \subsection{Navigation and Layout}
-Once logged in, users access all platform functions through the left sidebar. The sidebar lists the following modules in order: Dashboard, Carbon Tracking, Waste Management, Reports, Alerts, Training, ESG Management, Compliance Score, Anomaly Detection, User Management, and Audit Log. Not all entries are visible to every role -- lower-level users such as Store Staff only see the modules relevant to their responsibilities, while HQ Managers and Admins have access to the full list shown in Figure~\ref{fig:sidebar}. When there are unread alerts, a notification badge appears on the Alerts item. Across all pages, common interaction elements include data tables, filter controls, modal forms, summary cards, and charts.
+Once logged in, users access all platform functions through the left sidebar. The sidebar lists the following modules in order: Dashboard, Carbon Tracking, Waste Management, Reports, Alerts, Training, ESG Management, Compliance Score, Anomaly Detection, User Management, and Audit Log. Not all entries are visible to every role -- lower-level users such as Store Staff only see the modules relevant to their responsibilities, while HQ Managers and Admins have access to the full list shown in Figure~\ref{fig:sidebar}. When there are unread alerts, a notification badge appears on the Alerts item. Across all pages, common interaction elements include data tables, filter controls, modal forms, summary cards, and charts. \new{Navigation items are organised into four collapsible groups -- Reporting, Operations, Governance, and Admin -- so that users can expand only the area they currently work on; the expanded/collapsed state of each group is persisted across pages via the browser's local storage.}
 
 \begin{figure}[H]
   \centering

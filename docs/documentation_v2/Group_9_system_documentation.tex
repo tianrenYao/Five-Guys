@@ -14,6 +14,11 @@
 \usepackage{setspace}
 \usepackage{listings}
 \usepackage{xcolor}
+% v2 revision highlighting — remove \new wrapper + \rowcolor lines before final PDF
+\usepackage{soul}
+\usepackage{colortbl}
+\sethlcolor{yellow}
+\newcommand{\new}[1]{\hl{#1}}
 
 % ── Code listing style ────────────────────────────────
 \lstdefinestyle{pysnippet}{

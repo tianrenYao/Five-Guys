@@ -271,15 +271,21 @@
   <p style="color:#888; font-style:italic;">No waste records in this period.</p>
   {% endif %}
 
-  <!-- AI Evaluation -->
+  <!-- Evaluation (AI- or template-generated, depending on comment_source) -->
+  {% if comment_source == 'template' %}
+  <div class="section-title">Rule-based Evaluation</div>
+  <div class="ai-box">
+    <div class="ai-label">&#128203; Generated from rule-based templates (no AI involved)</div>
+  {% else %}
   <div class="section-title">AI-Generated Evaluation</div>
   <div class="ai-box">
     <div class="ai-label">&#129302; Powered by DeepSeek</div>
+  {% endif %}
     {% if ai_comment_html %}
     <div class="ai-content">{{ ai_comment_html | safe }}</div>
     {% else %}
     <p style="color:#888; font-style:italic;">
-      AI evaluation not yet generated. Use the "Generate AI Comment" button on the
+      Evaluation not yet generated. Use the "Generate AI Analysis" button on the
       report detail page to request an automatic assessment of this reporting period's
       sustainability performance.
     </p>
