@@ -17,6 +17,8 @@
 
 ## A. 用户文档（Group_9_user_documentation.tex，目标 ≤10 页）
 
+> **状态（2026-05-14 21:30）**：A1–A9 全部完成。多轮图片排版调整 + 文字精简后当前 **11 页**，已发组员评审；A10 编译通过、零警告；待组员反馈再做最后 1 页压缩或保持 11 页提交。
+
 > v1 当前 ≈ 9 页。预算余量 ≈ 1 页。下面 7 项做完后总页数应在 9.5–10。
 
 ### A1 · §1 Abstract — 加 v2 概览句 [HIGH] [size XS]
@@ -186,13 +188,13 @@
 | A1 | User Abstract 加 v2 句 | HIGH | XS | +0 | ✅ |
 | A2 | User §2.2 加 test_admin | HIGH | XS | +0 | ✅ |
 | A3 | User §2.3 加分组折叠 | LOW | XS | +0 | ✅ |
-| A4 | User §3 矩阵补 v2 页面 | MEDIUM | S | +0 | ⏳ |
-| A5 | User §4.1 加 Role-Specific Cards | HIGH | M | +0.3 | ⏳ |
-| A6 | User §4 共享流程精简 | MEDIUM | S | −0.4 | ⏳ |
-| A7 | User §7 Supplier+Policy 合并 | MEDIUM | S | −0.3 | ⏳ |
-| A8 | User §8（新）Hands-On Tutorial | HIGH | L | +1.0 | ⏳ |
-| A9 | User Conclusion 微调 | LOW | XS | +0 | ⏳ |
-| A10 | User 编译校页 | HIGH | XS | — | ⏳ |
+| A4 | User §3 矩阵补 v2 页面 | MEDIUM | S | +0 | ✅ |
+| A5 | User §4.1 加 Role-Specific Cards | HIGH | M | +0.3 | ✅ |
+| A6 | User §4 共享流程精简 | MEDIUM | S | −0.4 | ✅ |
+| A7 | User §7 Supplier+Policy 合并 | MEDIUM | S | −0.3 | ✅ |
+| A8 | User §8（新）Hands-On Tutorial | HIGH | L | +1.0 | ✅ |
+| A9 | User Conclusion 微调 | LOW | XS | +0 | ✅ |
+| A10 | User 编译校页 | HIGH | XS | 11 页 | 🛠 待组员评审 |
 | B1 | System Abstract 加 v2 句 | HIGH | XS | +0 | ⏳ |
 | B2 | System §3.3 加 Role-Specific Layouts | HIGH | M | +0.3 | ⏳ |
 | B3 | System §3.10.1 一句 Top-3 LLM | LOW | XS | +0 | ⏳ |
