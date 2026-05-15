@@ -10,6 +10,39 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        /* Sidebar group toggle styles */
+        .sidebar-group-toggle {
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.65) !important;
+            padding: 0.55rem 0.75rem !important;
+            margin-top: 0.25rem;
+        }
+        .sidebar-group-toggle:hover {
+            color: #fff !important;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+        }
+        .sidebar-chevron {
+            font-size: 0.8rem;
+            transition: transform 0.2s ease;
+        }
+        .sidebar-group-toggle[aria-expanded="false"] .sidebar-chevron {
+            transform: rotate(-90deg);
+        }
+        .sidebar-group-toggle[aria-expanded="true"] .sidebar-chevron {
+            transform: rotate(0deg);
+        }
+        .sidebar-group .nav-link {
+            font-size: 0.92rem;
+        }
+        .sidebar-group ul .nav-link {
+            padding: 0.45rem 0.75rem;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -26,80 +59,158 @@
                 <img src="{{ url_for('static', filename='img/company-logo.png') }}" alt="Company Logo" width="18" height="18" class="ms-1"
                      style="object-fit: contain;">
             </div>
-            <ul class="nav flex-column p-2">
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/dashboard' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/dashboard">
-                        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+            {# ─── path-based flags for default-open groups ─── #}
+            {% set reporting_paths  = ['/dashboard', '/map', '/report', '/compliance'] %}
+            {% set operations_paths = ['/carbon', '/waste', '/training'] %}
+            {% set governance_paths = ['/alerts', '/admin/anomaly-detection', '/supplier', '/policy'] %}
+            {% set admin_paths      = ['/admin/users', '/admin/audit-log'] %}
+            {% set role = session.get('role') %}
+
+            <ul class="nav flex-column p-2 sidebar-nav">
+
+                {# ── Reporting group ── #}
+                <li class="nav-item sidebar-group">
+                    <a class="nav-link sidebar-group-toggle text-white d-flex align-items-center"
+                       data-bs-toggle="collapse"
+                       href="#group-reporting"
+                       role="button"
+                       data-group-key="reporting"
+                       aria-expanded="{{ 'true' if request.path in reporting_paths else 'false' }}">
+                        <i class="bi bi-bar-chart me-2"></i>
+                        <span class="flex-grow-1">Reporting</span>
+                        <i class="bi bi-chevron-down sidebar-chevron"></i>
                     </a>
+                    <ul class="nav flex-column ms-3 collapse {% if request.path in reporting_paths %}show{% endif %}" id="group-reporting">
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/dashboard' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/dashboard">
+                                <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/map' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/map">
+                                <i class="bi bi-geo-alt me-2"></i>Store Map
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/report' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/report">
+                                <i class="bi bi-file-earmark-text me-2"></i>Reports
+                            </a>
+                        </li>
+                        {% if role in ('hq_manager', 'region_manager', 'admin') %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/compliance' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/compliance">
+                                <i class="bi bi-patch-check me-2"></i>Compliance Score
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/carbon' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/carbon">
-                        <i class="bi bi-lightning-charge me-2"></i>Carbon Tracking
+
+                {# ── Operations group ── #}
+                <li class="nav-item sidebar-group">
+                    <a class="nav-link sidebar-group-toggle text-white d-flex align-items-center"
+                       data-bs-toggle="collapse"
+                       href="#group-operations"
+                       role="button"
+                       data-group-key="operations"
+                       aria-expanded="{{ 'true' if request.path in operations_paths else 'false' }}">
+                        <i class="bi bi-tools me-2"></i>
+                        <span class="flex-grow-1">Operations</span>
+                        <i class="bi bi-chevron-down sidebar-chevron"></i>
                     </a>
+                    <ul class="nav flex-column ms-3 collapse {% if request.path in operations_paths %}show{% endif %}" id="group-operations">
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/carbon' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/carbon">
+                                <i class="bi bi-lightning-charge me-2"></i>Carbon Tracking
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/waste' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/waste">
+                                <i class="bi bi-recycle me-2"></i>Waste Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/training' %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/training">
+                                <i class="bi bi-mortarboard me-2"></i>Training
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/waste' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/waste">
-                        <i class="bi bi-recycle me-2"></i>Waste Management
+
+                {# ── Governance group (always visible — Supplier/Policy is open to all roles) ── #}
+                <li class="nav-item sidebar-group">
+                    <a class="nav-link sidebar-group-toggle text-white d-flex align-items-center"
+                       data-bs-toggle="collapse"
+                       href="#group-governance"
+                       role="button"
+                       data-group-key="governance"
+                       aria-expanded="{{ 'true' if request.path in governance_paths else 'false' }}">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        <span class="flex-grow-1">Governance</span>
+                        <i class="bi bi-chevron-down sidebar-chevron"></i>
                     </a>
+                    <ul class="nav flex-column ms-3 collapse {% if request.path in governance_paths %}show{% endif %}" id="group-governance">
+                        {% if role in ('hq_manager', 'region_manager', 'admin') %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/alerts' %}active bg-warning bg-opacity-25 rounded{% endif %}"
+                               href="/alerts" id="alertNavLink">
+                                <i class="bi bi-bell me-2"></i>Alerts
+                                <span id="sidebarAlertBadge" class="badge bg-danger ms-1 d-none">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/admin/anomaly-detection' %}active bg-warning bg-opacity-25 rounded{% endif %}"
+                               href="/admin/anomaly-detection">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Anomaly Detection
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path in ['/supplier', '/policy'] %}active bg-success bg-opacity-25 rounded{% endif %}"
+                               href="/supplier">
+                                <i class="bi bi-building-check me-2"></i>ESG Management
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/report' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/report">
-                        <i class="bi bi-file-earmark-text me-2"></i>Reports
+
+                {# ── Admin group ── #}
+                {% if role in ('hq_manager', 'admin') %}
+                <li class="nav-item sidebar-group">
+                    <a class="nav-link sidebar-group-toggle text-white d-flex align-items-center"
+                       data-bs-toggle="collapse"
+                       href="#group-admin"
+                       role="button"
+                       data-group-key="admin"
+                       aria-expanded="{{ 'true' if request.path in admin_paths else 'false' }}">
+                        <i class="bi bi-gear me-2"></i>
+                        <span class="flex-grow-1">Admin</span>
+                        <i class="bi bi-chevron-down sidebar-chevron"></i>
                     </a>
-                </li>
-                {% if session.get('role') in ('hq_manager', 'region_manager', 'admin') %}
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/alerts' %}active bg-warning bg-opacity-25 rounded{% endif %}"
-                       href="/alerts" id="alertNavLink">
-                        <i class="bi bi-bell me-2"></i>Alerts
-                        <span id="sidebarAlertBadge" class="badge bg-danger ms-1 d-none">0</span>
-                    </a>
+                    <ul class="nav flex-column ms-3 collapse {% if request.path in admin_paths %}show{% endif %}" id="group-admin">
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/admin/users' %}active bg-info bg-opacity-25 rounded{% endif %}"
+                               href="/admin/users">
+                                <i class="bi bi-people me-2"></i>User Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == '/admin/audit-log' %}active bg-info bg-opacity-25 rounded{% endif %}"
+                               href="/admin/audit-log">
+                                <i class="bi bi-shield-check me-2"></i>Audit Log
+                            </a>
+                        </li>
+                    </ul>
                 </li>
                 {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/training' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/training">
-                        <i class="bi bi-mortarboard me-2"></i>Training
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path in ['/supplier', '/policy'] %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/supplier">
-                        <i class="bi bi-building-check me-2"></i>ESG Management
-                    </a>
-                </li>
-                {% if session.get('role') in ('hq_manager', 'region_manager', 'admin') %}
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/compliance' %}active bg-success bg-opacity-25 rounded{% endif %}"
-                       href="/compliance">
-                        <i class="bi bi-patch-check me-2"></i>Compliance Score
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/admin/anomaly-detection' %}active bg-warning bg-opacity-25 rounded{% endif %}"
-                       href="/admin/anomaly-detection">
-                        <i class="bi bi-exclamation-triangle me-2"></i>Anomaly Detection
-                    </a>
-                </li>
-                {% endif %}
-                {% if session.get('role') in ('hq_manager', 'admin') %}
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/admin/users' %}active bg-info bg-opacity-25 rounded{% endif %}"
-                       href="/admin/users">
-                        <i class="bi bi-people me-2"></i>User Management
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path == '/admin/audit-log' %}active bg-info bg-opacity-25 rounded{% endif %}"
-                       href="/admin/audit-log">
-                        <i class="bi bi-shield-check me-2"></i>Audit Log
-                    </a>
-                </li>
-                {% endif %}
+
             </ul>
             <div class="mt-auto p-3 border-top border-secondary">
                 <small class="text-muted d-block">Logged in as</small>
@@ -177,6 +288,42 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
     <!-- Common JS -->
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+        // Sidebar group: persist open/closed state across page navigation
+        (function () {
+            const STORAGE_KEY = 'sidebarGroupState';
+            const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+            document.querySelectorAll('.sidebar-group-toggle').forEach(toggle => {
+                const key  = toggle.dataset.groupKey;
+                const body = document.querySelector(toggle.getAttribute('href'));
+                if (!body) return;
+
+                // Apply stored preference if present (overrides server-side default)
+                if (Object.prototype.hasOwnProperty.call(stored, key)) {
+                    if (stored[key]) {
+                        body.classList.add('show');
+                        toggle.setAttribute('aria-expanded', 'true');
+                    } else {
+                        body.classList.remove('show');
+                        toggle.setAttribute('aria-expanded', 'false');
+                    }
+                }
+
+                // Save state on toggle (Bootstrap fires these events on the collapse target)
+                body.addEventListener('shown.bs.collapse', () => {
+                    stored[key] = true;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+                    toggle.setAttribute('aria-expanded', 'true');
+                });
+                body.addEventListener('hidden.bs.collapse', () => {
+                    stored[key] = false;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+                    toggle.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,47 @@
+%%{init: {'flowchart': {'nodeSpacing': 25, 'rankSpacing': 30, 'curve': 'basis', 'htmlLabels': true}, 'themeVariables': {'fontSize': '14px'}}}%%
+flowchart TB
+
+subgraph L1["User Layer"]
+  direction LR
+  U1["Admin / HQ Manager"]
+  U2["Region Manager"]
+  U3["Store Staff"]
+end
+
+subgraph L2["Application Layer"]
+  direction LR
+  subgraph UI["Presentation"]
+    P1["Jinja2 Templates"]
+    P2["Bootstrap UI"]
+  end
+  subgraph BIZ["Business Modules"]
+    M1["Operations<br/>Carbon · Waste · Reports"]
+    M2["Governance<br/>ESG · Policy · Compliance"]
+    M3["Monitoring<br/>Alerts · Anomaly · Audit"]
+  end
+  subgraph SUP["Support"]
+    S1["Auth & RBAC"]
+    S2["OCR & AI Service"]
+  end
+end
+
+subgraph L3["Data & External Services"]
+  direction LR
+  D1[("MySQL Database")]
+  D2["WeasyPrint · Flask-Mail"]
+  D3["OCR Libs · AI API"]
+end
+
+L1 --> L2 --> L3
+
+classDef userBox fill:#E3F2FD,stroke:#64B5F6,color:#0D47A1;
+classDef uiBox fill:#E8F5E9,stroke:#81C784,color:#1B5E20;
+classDef bizBox fill:#FFF3E0,stroke:#FFB74D,color:#E65100;
+classDef supBox fill:#F3E5F5,stroke:#BA68C8,color:#4A148C;
+classDef dataBox fill:#ECEFF1,stroke:#90A4AE,color:#263238;
+
+class U1,U2,U3 userBox;
+class P1,P2 uiBox;
+class M1,M2,M3 bizBox;
+class S1,S2 supBox;
+class D1,D2,D3 dataBox;

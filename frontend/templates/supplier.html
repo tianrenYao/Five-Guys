@@ -363,6 +363,7 @@ const SUPPLIER_SCORECARD_FIELDS = [
   'reporting_report', 'reporting_completeness', 'reporting_frequency', 'reporting_verification'
 ];
 let _policies = [];
+let _supplierMock = false;
 let _currentPolicy = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -407,6 +408,7 @@ async function loadSuppliers() {
   const data = await apiFetch('/api/supplier/list');
   if (!data || !data.success) return;
   const suppliers = data.data;
+  _supplierMock = !!data.mock;
 
   // Summary cards
   const grades = { A:0, B:0, C:0, D:0, F:0 };
@@ -452,8 +454,8 @@ async function loadSuppliers() {
       <td><span class="badge bg-${gc} fs-6">${grade}</span></td>
       <td><small class="text-muted">${s.notes||'—'}</small></td>
       ${isManager ? `<td>
-        <button class="btn btn-sm btn-outline-primary me-1" onclick='openEditSupplier(${JSON.stringify(s)})' title="Edit"><i class="bi bi-pencil"></i></button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteSupplier(${s.id})" title="Delete"><i class="bi bi-trash"></i></button>
+        <button class="btn btn-sm btn-outline-primary me-1" onclick='openEditSupplier(${JSON.stringify(s)})' title="Edit" ${_supplierMock ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteSupplier(${s.id})" title="Delete" ${_supplierMock ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
       </td>` : ''}
     </tr>`;
   }).join('');

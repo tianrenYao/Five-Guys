@@ -1,0 +1,303 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\graphicspath{{images/}{../documentation/images/}}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,skip=3pt}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{times}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{soul}
+\usepackage{colortbl}
+\sethlcolor{yellow}
+\newcommand{\new}[1]{\hl{#1}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4\baselineskip}
+\onehalfspacing
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.12}
+
+\newcommand{\rolelabel}[1]{\textbf{#1}}
+
+\setcounter{secnumdepth}{2}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{User Documentation}}
+\fancyhead[R]{\small\textit{Group 9 -- Five Guys}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing{\section}{0pt}{0.9em}{0.2em}
+\titlespacing{\subsection}{0pt}{0.5em}{0.1em}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{User Documentation}}\\
+\vspace{0.25em}
+{\large \textbf{Business Sustainability Management Platform}}\\
+\vspace{0.35em}
+{\small\itshape Group 9 -- Five Guys}
+\end{center}
+
+\vspace{0.25em}
+\hrule
+\vspace{0.25em}
+{\small
+\begin{tabular}{@{}ll}
+\textbf{Document Type:} & User Documentation \\
+\textbf{Filename:}       & Group\_9\_user\_documentation.pdf \\
+\textbf{Date:}          & \today \\
+\end{tabular}
+}
+\vspace{0.2em}
+\hrule
+\vspace{0.4em}
+\thispagestyle{plain}
+\normalsize
+
+\section*{Abstract}
+This user documentation explains role-based operations on the Business Sustainability Management Platform, which focuses on SDG 12 and tracks carbon, waste, and ESG data for 218 pre-seeded stores. Core functions include role-tailored dashboards, carbon/waste management, report generation, and alert monitoring. The platform supports four roles (Store Staff, Region Manager, HQ Manager, Admin) with tiered access, enabling daily sustainability data entry, regional oversight, company-wide configuration, and full platform administration respectively.
+
+\section{Getting Started}
+
+\subsection{Accessing and Logging In}
+Open the platform URL in a web browser; enter username/password and click Login. Redirect to dashboard on success; error message for incorrect credentials.
+
+\subsection{Test Accounts}
+Pre-configured test accounts (all password: 123456):
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{0.90\linewidth}{@{}lllX@{}}
+\toprule
+\textbf{Username} & \textbf{Password} & \textbf{Role} & \textbf{Access Scope} \\
+\midrule
+\rowcolor{yellow!40}\texttt{test\_admin}    & 123456 & Admin          & Platform-wide management \\
+\texttt{test\_business} & 123456 & HQ Manager     & Company-wide ESG governance \\
+\texttt{test\_region}   & 123456 & Region Manager & Regional performance monitoring \\
+\texttt{test\_staff}    & 123456 & Store Staff    & Own store data entry \\
+\bottomrule
+\end{tabularx}
+\caption{Pre-configured test accounts (system has 218 store demo data)}
+\end{table}
+
+\subsection{Navigation and Layout}
+Access functions via left sidebar (collapsible groups: Reporting, Operations, Governance, Admin). Visible modules depend on role; unread alerts show notification badges. Common elements: data tables, filters, modal forms, charts.
+
+\section{Shared Core Workflows}
+
+\subsection{Dashboard Review}
+Main overview page with role-specific KPI cards (carbon emissions, waste, recycling rate) and charts. Store Staff see store-specific alerts; Region Managers see regional leaderboards; HQ Managers see risk watch; Admins see system health (Admin-only).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.50\textwidth]{SDG_panel.png}
+  \caption{SDG 12 alignment panel on dashboard}
+  \label{fig:SDG_panel}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{dashboard_hq_riskwatch.png}\\[0.4em]
+  \includegraphics[width=0.92\textwidth]{dashboard_region_leaderboard.png}\\[0.4em]
+  \includegraphics[width=0.92\textwidth]{system_health_card.png}
+  \caption{Role-specific dashboard cards (HQ Risk Watch, Region Leaderboard, Admin System Health)}
+  \label{fig:role_dashboards}
+\end{figure}
+
+\subsection{Carbon Tracking}
+Record carbon data (electricity/transport/fuel) with auto-calculated CO₂e. Click Add Record to submit entries; use Scan Bill (OCR) to pre-fill forms. Support CSV import/export; data scope follows user role.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.60\textwidth]{carbon_tracking.png}
+  \caption{Carbon tracking page}
+  \label{fig:carbon}
+\end{figure}
+
+\subsection{Waste Management}
+Log waste/recycling data (categories: cup lids, plastic, food residue etc.). Submit entries with total/recycled weight (system rejects invalid values). Support month-on-month comparison and CSV import/export.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.60\textwidth]{waste_management.jpg}
+  \caption{Waste management page}
+  \label{fig:waste}
+\end{figure}
+
+\subsection{Sustainability Reports}
+Generate sustainability reports by entering title/type/date range and clicking Generate Report. Support AI-assisted analysis (fallback to template) and PDF export.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{reports_page.jpg}
+  \caption{Sustainability reports page}
+  \label{fig:reports_page}
+\end{figure}
+
+\subsection{Training Records}
+Log staff sustainability training (course name, type, trainee, duration, score). View annual summary statistics and filterable record table.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{training_page.png}
+  \caption{Training page}
+  \label{fig:Training_page}
+\end{figure}
+
+\subsection{Store Map}\label{sec:map}
+Interactive map showing stores within user's scope (Store Staff: own store; Region Manager: region; HQ/Admin: full network). Filter by region/grade; click markers for store KPI popups.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{map_overview.png}
+  \caption{Store Map page}
+  \label{fig:store-map}
+\end{figure}
+
+\section{Role Usage Guide}
+
+\subsection{Store Staff}
+Primary role: record daily carbon/waste data for own store. Access Dashboard, Carbon Tracking, Waste Management, Reports, Training. No access to threshold configuration/compliance scoring/anomaly detection/user management.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\textwidth]{dashboard_staff_v2.jpg}\\[0.4em]
+  \includegraphics[width=0.85\textwidth]{carbon_add_form.png}
+  \caption{Store staff dashboard and carbon entry form}
+  \label{fig:staff-view}
+\end{figure}
+
+\subsection{Region Manager}
+Supervise regional store performance. Access Alerts, Compliance Score, Anomaly Detection (in addition to core pages) to identify unusual values and ESG compliance issues.
+
+\subsubsection{Compliance Score Page}
+Calculate/review annual ESG scorecard with overall score, grade, and dimension breakdowns.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{compliance_score.png}
+  \caption{Compliance Score page}
+  \label{fig:compliance_score}
+\end{figure}
+
+\subsubsection{Anomaly Detection}
+Flag suspicious carbon/waste values (Z-score + hard rules). Review flagged records and mark status (Reviewed/False Positive/Resolved); escalate genuine errors to store staff/HQ.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.80\textwidth]{anomaly_detection.png}
+  \caption{Anomaly Detection page}
+  \label{fig:anomaly_detection}
+\end{figure}
+
+\subsection{HQ ESG Manager}
+Manage company-wide ESG governance and alert configuration. Access Alerts (threshold setup), ESG Management (supplier scoring/policy), User Management, and Audit Log.
+
+\subsubsection{Alert Threshold Configuration}\label{sec:alerts-config}
+Define alert rules (metric/condition/value/scope). Breaches trigger log entries, notification badges, and email alerts (server-log fallback for demos).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[height=5.5cm]{alert_page.png}
+  \hfill
+  \includegraphics[height=5.5cm]{the Add Threshold modal.png}
+  \caption{Alert Centre and threshold configuration form}
+  \label{fig:alerts-threshold}
+\end{figure}
+
+\subsubsection{ESG Governance (Supplier + Policy)}
+Supplier ESG: score suppliers (0/50/100 per indicator) for auto-calculated grades. Company Policy: manage internal policies (title/category/status/effective date/version).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{supplier ESG table with grades visible.png}\\[0.4em]
+  \includegraphics[width=0.42\textwidth]{add and edit supplier modal showing scorecard.png}
+  \caption{Supplier ESG table and scoring form}
+  \label{fig:esg-supplier}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{the policy list.png}
+  \caption{Company Policy management list}
+  \label{fig:esg-policy}
+\end{figure}
+
+\subsubsection{User Management}
+Create/edit/delete user accounts with role/scope assignment. View role distribution summary cards.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{main user table with summary cards.png}
+  \caption{User management overview}
+  \label{fig:user-table}
+\end{figure}
+
+\subsubsection{Audit Log}
+Track critical system operations (time/user/role/action/IP) with filters and summary cards for accountability.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{the Audit Log page.png}
+  \caption{Audit log page}
+  \label{fig:audit-log-page}
+\end{figure}
+
+\subsection{Admin}
+Platform administrators have full platform-wide authority: manage all users, view full audit logs, and access the System Health dashboard card.
+
+\section{Advanced Features}
+
+\subsection{Anomaly Detection (Detailed)}
+Anomaly Detection uses Z-score (1.5σ-3.0σ) and hard rules to flag invalid carbon/waste data. AI-assisted analysis (fallback to template) provides cause/risk/recommendations for top 3 anomalies.
+
+\subsection{Compliance Scoring}
+Compliance Score translates sustainability activities into a structured ESG scorecard (overall score, grade, dimension breakdowns) for annual review.
+
+\section{Hands-On Tutorial}
+Core tasks for each role (complete in 3 steps or less):
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}p{0.08\linewidth}p{0.20\linewidth}Xp{0.22\linewidth}@{}}
+\toprule
+\textbf{Role} & \textbf{Task} & \textbf{Steps} & \textbf{Expected Outcome} \\
+\midrule
+Staff  & Log carbon record    & Carbon $\to$ Add $\to$ Submit              & New row in table; dashboard updates       \\
+Staff  & View store alerts    & Dashboard $\to$ Open Alerts panel          & Unread alerts for own store visible       \\
+Region & View regional ranking& Dashboard $\to$ Region Leaderboard         & Stores ranked by recycling/carbon         \\
+Region & Check anomaly data   & Anomaly Detection $\to$ filter region      & Flagged records with status options       \\
+HQ     & Configure alert threshold & Alerts $\to$ Add Threshold $\to$ Save    & New rule in active threshold list         \\
+HQ     & Generate report      & Reports $\to$ Generate $\to$ Export PDF    & AI-assisted report with PDF download      \\
+\bottomrule
+\end{tabularx}
+\caption{6 core hands-on tasks (role-specific)}
+\label{tab:walkthrough}
+\end{table}
+
+\section*{Appendix}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt]
+    \item \textbf{Keyboard Shortcuts}: Ctrl+S (save form), Ctrl+F (page search), Ctrl+E (export CSV)
+    \item \textbf{Supported Browsers}: Chrome 90+, Firefox 88+, Edge 90+ (latest version recommended)
+    \item \textbf{Support Contact}: esg-support@fiveguys.com (response time: 24 business hours)
+\end{itemize}
+
+\end{document}

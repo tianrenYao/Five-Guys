@@ -3,6 +3,229 @@
 {% block page_title %}<i class="bi bi-speedometer2 me-1"></i> Dashboard{% endblock %}
 
 {% block content %}
+{# Inject current role for dashboard.js role-aware loaders #}
+<script>
+  window.userRole        = "{{ session.get('role', '') }}";
+  window.userDisplayName = "{{ session.get('display_name', session.get('username', '')) }}";
+</script>
+
+{# ─── Role banner ─── #}
+{% set role = session.get('role') %}
+<div class="card border-0 shadow-sm mb-4"
+     style="background:linear-gradient(135deg,#0d6efd 0%,#198754 100%);color:#fff;">
+    <div class="card-body py-3 d-flex align-items-center gap-3">
+        <div style="font-size:1.6rem;">
+            {% if role == 'admin' %}<i class="bi bi-shield-lock-fill"></i>
+            {% elif role == 'hq_manager' %}<i class="bi bi-building-fill-gear"></i>
+            {% elif role == 'region_manager' %}<i class="bi bi-pin-map-fill"></i>
+            {% else %}<i class="bi bi-shop"></i>{% endif %}
+        </div>
+        <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size:1.05rem;">
+                Welcome back, {{ session.get('display_name', session.get('username')) }}
+            </div>
+            <small style="opacity:.85;">
+                {% if role == 'admin' %}Platform Admin · system-wide oversight
+                {% elif role == 'hq_manager' %}HQ ESG Manager · global trend &amp; risk watch
+                {% elif role == 'region_manager' %}Region Manager · regional store leaderboard
+                {% elif role == 'store_staff' %}Store Staff · my store this month
+                {% else %}{{ role }}{% endif %}
+            </small>
+        </div>
+        <span class="badge bg-white text-dark">{{ role or 'guest' }}</span>
+    </div>
+</div>
+
+{# ─── Role-specific widget block ─── #}
+
+{% if role == 'store_staff' %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-shop me-1"></i> <span id="staffStoreName">My Store</span></h6>
+                <small class="text-muted" id="staffStoreCity"></small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="border rounded p-3 h-100">
+                            <small class="text-muted">Carbon — This Month</small>
+                            <div class="d-flex align-items-baseline gap-2 mt-1">
+                                <h4 class="mb-0" id="staffCarbonNow">--</h4>
+                                <small class="text-muted">kgCO2e</small>
+                            </div>
+                            <div id="staffCarbonMoM" class="small mt-1"></div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-3 h-100">
+                            <small class="text-muted">Waste — This Month</small>
+                            <div class="d-flex align-items-baseline gap-2 mt-1">
+                                <h4 class="mb-0" id="staffWasteNow">--</h4>
+                                <small class="text-muted">kg</small>
+                            </div>
+                            <div class="small mt-1 text-success" id="staffRecycleRate"></div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="/carbon" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i>Add Carbon Record
+                            </a>
+                            <a href="/waste" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i>Add Waste Record
+                            </a>
+                            <a href="/training" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-mortarboard me-1"></i>My Training
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-bell-fill me-1 text-danger"></i> Open Alerts</h6>
+                <span class="badge bg-danger" id="staffAlertsCount">0</span>
+            </div>
+            <div class="card-body p-0" style="max-height: 320px; overflow-y: auto;">
+                <ul class="list-group list-group-flush" id="staffAlertsList">
+                    <li class="list-group-item text-center text-muted py-3">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if role == 'region_manager' %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-recycle me-1 text-success"></i> Recycling Rate Leaderboard (YTD)</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                        <tr><th>#</th><th>Store</th><th class="text-end">Rate</th></tr>
+                    </thead>
+                    <tbody id="regionRecyclingBody">
+                        <tr><td colspan="3" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-cloud-haze me-1 text-danger"></i> Carbon Emissions Ranking (YTD)</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                        <tr><th>#</th><th>Store</th><th class="text-end">kgCO2e</th></tr>
+                    </thead>
+                    <tbody id="regionCarbonBody">
+                        <tr><td colspan="3" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if role in ('hq_manager', 'admin') %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-exclamation-octagon-fill me-1 text-danger"></i> High-Alert Stores</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush" id="riskHighAlertList">
+                    <li class="list-group-item text-center text-muted py-3">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-1 text-warning"></i> Carbon Spike (≥ +30% MoM)</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush" id="riskSpikeList">
+                    <li class="list-group-item text-center text-muted py-3">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-cloud-slash me-1 text-secondary"></i> Silent Stores (No Data This Month)</h6>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush" id="riskSilentList">
+                    <li class="list-group-item text-center text-muted py-3">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if role == 'admin' %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-activity me-1 text-primary"></i> System Health</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3" id="systemHealthCards">
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="text-muted small">Users (Active / Total)</div>
+                            <h5 class="mb-0 mt-1" id="shUsers">--</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="text-muted small">Stores</div>
+                            <h5 class="mb-0 mt-1" id="shStores">--</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="text-muted small">Records Today</div>
+                            <h5 class="mb-0 mt-1" id="shRecords">--</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="text-muted small">Service Status</div>
+                            <div class="mt-1 d-flex justify-content-center gap-1" id="shServices">--</div>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <h6 class="mb-2 small text-muted">Recent Audit Trail</h6>
+                <ul class="list-group list-group-flush" id="shAuditList">
+                    <li class="list-group-item text-center text-muted py-2">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
 <!-- Summary Cards -->
 <div class="row g-4 mb-4">
     <div class="col-xl-3 col-md-6">

@@ -32,9 +32,17 @@ async function loadReports() {
         exported: 'bg-primary'
     };
 
-    tbody.innerHTML = data.data.map(r => `
+    tbody.innerHTML = data.data.map(r => {
+        const isAi = r.comment_source === 'ai';
+        const isTpl = r.comment_source === 'template';
+        const sourceBadge = isAi
+            ? '<span class="badge bg-warning text-dark ms-1" title="AI-generated evaluation"><i class="bi bi-stars"></i></span>'
+            : isTpl
+                ? '<span class="badge bg-secondary ms-1" title="Rule-based evaluation"><i class="bi bi-list-check"></i></span>'
+                : '';
+        return `
         <tr>
-            <td><strong>${r.title}</strong></td>
+            <td><strong>${r.title}</strong>${sourceBadge}</td>
             <td><span class="badge bg-info">${r.report_type}</span></td>
             <td><small>${formatDate(r.date_from)} ~ ${formatDate(r.date_to)}</small></td>
             <td><span class="badge ${statusBadge[r.status] || 'bg-secondary'}">${r.status}</span></td>
@@ -43,9 +51,6 @@ async function loadReports() {
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" onclick="viewReport(${r.id})" title="View">
                         <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-outline-warning" onclick="viewReport(${r.id}, true)" title="AI Analysis">
-                        <i class="bi bi-stars"></i>
                     </button>
                     <button class="btn btn-outline-success" onclick="exportPdf(${r.id})" title="Export PDF">
                         <i class="bi bi-file-pdf"></i>
@@ -56,7 +61,49 @@ async function loadReports() {
                 </div>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
+}
+
+// Render the evaluation block (title, icon, badge, content) based on comment_source.
+function renderEvaluation({ ai_comment_html, ai_comment, comment_source, ai_fallback_to_template }) {
+    const section = document.getElementById('aiCommentSection');
+    const titleEl = document.getElementById('aiCommentTitle');
+    const iconEl  = document.getElementById('aiCommentIcon');
+    const badgeEl = document.getElementById('aiSourceBadge');
+    const content = document.getElementById('aiCommentContent');
+    const btnEl   = document.getElementById('aiCommentBtn');
+
+    if (!ai_comment_html && !ai_comment) {
+        section.classList.add('d-none');
+        return;
+    }
+
+    content.innerHTML = ai_comment_html || ai_comment;
+
+    if (comment_source === 'template') {
+        titleEl.textContent = 'Rule-based ESG Evaluation';
+        iconEl.className = 'bi bi-list-check text-secondary fs-5';
+        badgeEl.textContent = ai_fallback_to_template ? 'AI unavailable — template fallback' : 'Template';
+        badgeEl.className = 'badge bg-secondary';
+        badgeEl.classList.remove('d-none');
+        if (btnEl) {
+            btnEl.innerHTML = '<i class="bi bi-stars me-1"></i>Upgrade to AI Analysis';
+            btnEl.classList.remove('d-none');
+        }
+    } else {
+        titleEl.textContent = 'AI ESG Analysis';
+        iconEl.className = 'bi bi-stars text-warning fs-5';
+        badgeEl.textContent = 'AI · DeepSeek';
+        badgeEl.className = 'badge bg-warning text-dark';
+        badgeEl.classList.remove('d-none');
+        if (btnEl) {
+            btnEl.innerHTML = '<i class="bi bi-stars me-1"></i>Re-generate AI Analysis';
+            btnEl.classList.remove('d-none');
+        }
+    }
+
+    section.classList.remove('d-none');
 }
 
 async function generateReport(e) {
@@ -65,12 +112,18 @@ async function generateReport(e) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
 
+    const useAi = document.getElementById('useAi').checked;
     const payload = {
         title: document.getElementById('title').value.trim(),
         report_type: document.getElementById('report_type').value,
         date_from: document.getElementById('date_from').value,
-        date_to: document.getElementById('date_to').value
+        date_to: document.getElementById('date_to').value,
+        use_ai: useAi
     };
+
+    btn.innerHTML = useAi
+        ? '<span class="spinner-border spinner-border-sm me-1"></span>Generating + calling AI...'
+        : '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
 
     const data = await apiFetch('/api/report/generate', {
         method: 'POST',
@@ -81,21 +134,30 @@ async function generateReport(e) {
     btn.innerHTML = '<i class="bi bi-file-earmark-plus me-1"></i>Generate Report';
 
     if (data && data.success) {
-        showAlert('reportAlert', 'Report generated successfully!', 'success');
-        document.getElementById('reportForm').reset();
+        const d = data.data || {};
+        let msg = 'Report generated successfully!';
+        if (d.ai_fallback_to_template) {
+            msg = 'Report generated, but AI service was unavailable — used rule-based template instead.';
+        }
+        showAlert('reportAlert', msg, d.ai_fallback_to_template ? 'warning' : 'success');
+        // Preserve form values; only reset the title so the user can quickly chain reports if needed
+        document.getElementById('title').value = '';
         loadReports();
 
-        // Show preview
-        if (data.data && data.data.content) {
-            document.getElementById('reportContent').textContent = data.data.content;
+        // Show preview with evaluation already filled in
+        if (d.content) {
+            currentReportId = d.id;
+            document.getElementById('reportContent').textContent = d.content;
             document.getElementById('previewCard').classList.remove('d-none');
+            renderEvaluation(d);
+            document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth' });
         }
     } else {
         showAlert('reportAlert', (data && data.message) || 'Failed to generate report');
     }
 }
 
-async function viewReport(id, triggerAi = false) {
+async function viewReport(id) {
     const data = await apiFetch(`/api/report/${id}`);
     if (!data || !data.success) return;
 
@@ -103,22 +165,14 @@ async function viewReport(id, triggerAi = false) {
     document.getElementById('reportContent').textContent = data.data.content || 'No content available.';
     document.getElementById('previewCard').classList.remove('d-none');
 
-    // Reset AI section
-    const aiSection = document.getElementById('aiCommentSection');
-    const aiContent = document.getElementById('aiCommentContent');
-    const aiBadge   = document.getElementById('aiMockBadge');
-    if (data.data.ai_comment) {
-        aiContent.textContent = data.data.ai_comment;
-        aiBadge.classList.toggle('d-none', !data.data.ai_comment.includes('Mock Mode'));
-        aiSection.classList.remove('d-none');
-    } else {
-        aiSection.classList.add('d-none');
-    }
+    renderEvaluation({
+        ai_comment: data.data.ai_comment,
+        ai_comment_html: data.data.ai_comment_html,
+        comment_source: data.data.comment_source,
+        ai_fallback_to_template: false
+    });
 
     document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth' });
-    if (triggerAi && !data.data.ai_comment) {
-        generateAiComment();
-    }
 }
 
 async function generateAiComment() {
@@ -130,20 +184,20 @@ async function generateAiComment() {
     const data = await apiFetch(`/api/report/${currentReportId}/ai-comment`, { method: 'POST' });
 
     btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-stars me-1"></i>Re-generate AI Analysis';
 
     if (!data || !data.success) {
+        btn.innerHTML = '<i class="bi bi-stars me-1"></i>Re-generate AI Analysis';
         alert('Failed to generate AI analysis.');
         return;
     }
 
-    const aiSection = document.getElementById('aiCommentSection');
-    const aiContent = document.getElementById('aiCommentContent');
-    const aiBadge   = document.getElementById('aiMockBadge');
-
-    aiContent.textContent = data.ai_comment;
-    aiBadge.classList.toggle('d-none', !data.is_mock);
-    aiSection.classList.remove('d-none');
+    renderEvaluation({
+        ai_comment: data.ai_comment,
+        ai_comment_html: data.ai_comment_html,
+        comment_source: data.comment_source,
+        ai_fallback_to_template: (data.comment_source === 'template')
+    });
+    loadReports();
 }
 
 function exportPdf(id) {

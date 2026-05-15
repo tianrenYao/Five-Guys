@@ -24,3 +24,11 @@ backend/reports/*.pdf
 
 # Logs
 *.log
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+登录远程VM并验证的方法.md

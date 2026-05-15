@@ -161,8 +161,8 @@ def _score_alerts(store_ids):
     sid = list(store_ids)
 
     agg = query_db(
-        f'SELECT COUNT(*) AS total, SUM(is_resolved) AS resolved '
-        f'FROM alert WHERE store_id IN ({ph})',
+        f'SELECT COUNT(*) AS total, SUM(is_read) AS resolved '
+        f'FROM alert_log WHERE store_id IN ({ph})',
         sid, one=True
     )
     total    = int(agg['total']    or 0)

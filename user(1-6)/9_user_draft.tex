@@ -1,0 +1,436 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[a4paper,margin=0.75in]{geometry}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{fontspec}
+
+\setmainfont{Times New Roman}
+\newfontfamily\zhfont{PingFang SC}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.12}
+
+\newcommand{\draftnote}[1]{\vspace{0.2em}{\small\color{blue!60!black}{\zhfont\textbf{给队友的写作提示：}} #1}\vspace{0.2em}}
+\newcommand{\shotnote}[1]{\vspace{0.1em}{\small\color{teal!60!black}{\zhfont\textbf{建议截图说明：}} #1}\vspace{0.1em}}
+\newcommand{\rolelabel}[1]{\textbf{#1}}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{User Documentation}}\\
+\vspace{0.25em}
+{\large \textbf{Business Sustainability Management Platform}}\\
+\vspace{0.35em}
+{\small\itshape Group 9 -- Five Guys}
+\end{center}
+
+\vspace{0.35em}
+\hrule
+\vspace{0.5em}
+\small
+\textbf{Document Type:} User Documentation Draft Framework\\
+\textbf{Filename:} 9\_user\_draft.pdf\\
+\textbf{Purpose of this draft:} A detailed writing framework for teammates who will complete the final user manual text and screenshots.
+
+\vspace{0.5em}
+\hrule
+\vspace{0.6em}
+\normalsize
+
+\section*{Abstract}
+This user documentation explains how different users interact with the Business Sustainability Management Platform in practice. The platform supports sustainability operations and ESG management through role-based access, allowing different users to view, enter, review, and manage information according to their organisational responsibility. Core user-facing functions include dashboard review, carbon tracking, waste management, report generation, staff training records, ESG management, and several management-oriented monitoring tools.
+
+\section*{1. Document Purpose and Usage Scope}
+
+\subsection*{1.1 Purpose of the User Manual}
+This document is intended to help end users understand how to access the platform, navigate between modules, and perform the main tasks available to them. It is not a system design document. Instead, it focuses on practical interaction from the user perspective, including common workflows such as logging in, entering sustainability records, generating reports, reviewing alerts, and using management pages. The user manual is task-oriented, role-sensitive, and based on the current implemented version of the system rather than early planning ideas.
+
+\subsection*{1.2 Intended Readers}
+The platform supports four main user roles:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item \rolelabel{Store Staff} -- operational users who mainly create and manage carbon and waste records for their own store.
+    \item \rolelabel{Region Manager} -- supervisory users who review data across stores within their assigned region and use broader monitoring functions.
+    \item \rolelabel{HQ Manager} -- company-level management users who can configure thresholds, manage ESG governance content, review compliance, and maintain organisation-wide user and policy data.
+    \item \rolelabel{Admin} -- highest-level platform user with broad access to company-wide or platform-wide administrative functions.
+\end{itemize}
+
+
+\subsection*{1.3 How This Manual Is Organised}
+This manual first introduces login and general navigation, then explains common workflows shared by most users, and finally separates guidance by role. This structure is useful because some pages, such as the dashboard or report page, are visible to many users, while others, such as user management and audit log, are restricted to only a small group.
+
+
+\section*{2. Getting Started}
+
+\subsection*{2.1 Accessing the Platform}
+Users first arrive at the welcome page and then proceed to the login page. After successful authentication, the system redirects them to the dashboard. The welcome page mainly functions as a landing page, while the login page is the actual entry point for authenticated use.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{welcome_page.png}
+  \caption{welcome page}
+  \label{fig:welcome_page}
+\end{figure}
+
+
+\subsection*{2.2 Login Workflow}
+The login page contains username and password fields, a login button, and an alert area for failed login attempts. In demo or testing contexts, the page may also show sample test accounts. After login, users are redirected to the dashboard. If the credentials are incorrect, the page displays an error message instead of navigating away.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{login_page.png}
+  \caption{logged-in page}
+  \label{fig:login_page}
+\end{figure}
+
+\subsection*{2.3 General Navigation and Layout}
+Once logged in, users see a shared layout with a left sidebar, top bar, and central content area. The sidebar contains the main modules such as Dashboard, Carbon Tracking, Waste Management, Reports, Training, and ESG Management. Additional management entries such as Alerts, Compliance Score, Anomaly Detection, User Management, and Audit Log only appear for users whose role allows access to those pages.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{logged_in_page.png}
+  \caption{login page with correct and error situation}
+  \label{fig:logged_in_page}
+\end{figure}
+
+\subsection*{2.4 Common Interaction Patterns}
+Several pages use repeated interaction patterns, including data tables, filters, modals, summary cards, form validation alerts, confirmation prompts for deletion, and charts for trend review. This consistency helps users learn the platform faster because once they understand the basic pattern on one page, they can transfer that knowledge to other modules.
+
+
+\section*{3. Role and Feature Overview}
+
+\begin{table}[h]
+\centering
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}p{0.14\linewidth}p{0.22\linewidth}p{0.18\linewidth}p{0.14\linewidth}X@{}}
+\toprule
+\textbf{Role} & \textbf{Main Operational Pages} & \textbf{Management Pages} & \textbf{Typical Scope} & \textbf{Important Restriction} \\
+\midrule
+Store Staff & Dashboard, Carbon, Waste, Reports, Training & Minimal & Own store & No high-level management pages; stricter edit/delete limits \\
+Region Manager & Dashboard, Carbon, Waste, Reports, Training, Alerts, Compliance, Anomaly Detection & Monitoring and review & Assigned region & Cannot manage users or create company policies \\
+HQ Manager & Core pages plus Alerts, Compliance, ESG Management, User Management, Audit Log & Company-wide management & Company-wide & Handles governance content and threshold configuration \\
+Admin & Similar to HQ Manager with broader authority & Full administration & Platform-wide & Can manage users more broadly and inspect audit activities \\
+\bottomrule
+\end{tabularx}
+\caption{Role-oriented summary for the final user manual}
+\end{table}
+
+
+\section*{4. Shared Core Workflows for Most Users}
+
+\subsection*{4.1 Dashboard Review}
+The dashboard acts as the main overview page after login. It shows summary cards for annual carbon emissions, total waste, recycling rate, and report count. It also includes charts for monthly carbon trend, carbon by category, and waste composition, plus an SDG 12 panel that connects system data with broader sustainability indicators. The charts support drilldown and deeper inspection and the visible data scope depends on the user's role.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{SDG_panel.png}
+  \caption{The panel of SDG 12}
+  \label{fig:SDG_panel}
+\end{figure}
+
+
+\subsection*{4.2 Carbon Tracking}
+The carbon tracking page is used to record carbon-related operational activity. Users can create records, review existing entries, and in some cases edit or delete recent entries. The page is especially important for store-level operational input because it feeds later dashboards, reports, and comparisons.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{carbon_tracking.png}
+  \caption{Carbon Footprint Tracking}
+  \label{fig:carbon_tracking}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{carbon_comparison.png}
+  \caption{Carbon Data comparison}
+  \label{fig:carbon_comparison}
+\end{figure}
+
+\textbf{Suggested workflow steps to describe:}
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt,topsep=2pt]
+    \item open the Carbon Tracking page from the sidebar;
+    \item click the add-record function or open the form;
+    \item fill in the required fields;
+    \item submit the record and confirm it appears in the list;
+    \item if permitted, edit or delete a recent record.
+\end{enumerate}
+
+\textbf{Important behaviour:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item lower-permission users are limited to their own store scope;
+    \item store staff have tighter edit/delete time windows;
+    \item carbon data later contribute to charts, reports, and compliance-related analysis.
+\end{itemize}
+
+\subsection*{4.3 Waste Management}
+The waste management page is used to record waste generation, recycled quantity, category, source, and disposal information. Like carbon tracking, it is both an operational input page and an analytical data source for later reporting and monitoring.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{waste_management.png}
+  \caption{Waste Management}
+  \label{fig:waste_management}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{waste_comparison.png}
+  \caption{Waste Data Comparison}
+  \label{fig:waste_comparison}
+\end{figure}
+
+\textbf{important point:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item users can add, review, and manage waste records;
+    \item recycled quantity must remain logically consistent with total waste;
+    \item the page supports ongoing waste monitoring and later reporting reuse;
+    \item access scope follows the user's organisational role.
+\end{itemize}
+
+\subsection*{4.4 Sustainability Reports}
+The Reports page allows users to generate sustainability reports for a selected time range. The user provides a title, report type, and date range, then the system generates a structured report and stores it in the report list. Users can preview the report content, export it as PDF, and optionally request AI-generated ESG analysis.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{reports_page.png}
+  \caption{Sustainability reports page}
+  \label{fig:reports_page}
+\end{figure}
+
+\textbf{Workflow steps:}
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt,topsep=2pt]
+    \item open the Reports page;
+    \item enter a title and choose report type;
+    \item select the reporting period;
+    \item click \texttt{Generate Report};
+    \item open the generated item from the list to preview content;
+    \item export the report or request AI analysis if desired.
+\end{enumerate}
+
+\textbf{Important details:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item reports are stored in the system after generation;
+    \item the preview area shows generated textual content;
+    \item AI analysis may appear in live or mock mode depending on environment configuration.
+\end{itemize}
+
+\subsection*{4.5 Training Records}
+The Training page records staff sustainability training sessions and displays training-related statistics. Users can log course name, course type, trainee, duration, completion date, score, and status. The right side of the page presents summary statistics and a filterable training-record table.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{training_page.png}
+  \caption{Training page}
+  \label{fig:Training_page}
+\end{figure}
+
+\textbf{Suggested points to cover:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item users can log a new training session through the form;
+    \item course type and completion status help classify records;
+    \item the page provides annual session count, hours, trainee count, and average score;
+    \item filters help narrow the table by course type or status.
+\end{itemize}
+
+\subsection*{4.6 ESG Management Entry Point}
+The ESG Management area combines supplier ESG assessment and company policy management in one interface. This page is visible broadly, but editing rights are more limited. The page uses tabs to switch between supplier-related content and policy-related content.
+
+
+\section*{5. Store Staff Guide}
+
+\subsection*{5.1 Typical Responsibilities}
+Store staff are the most operationally focused users. They mainly record day-to-day sustainability data for their own store and support consistent data collection. Their most important pages are Dashboard, Carbon Tracking, Waste Management, Reports, and Training.
+
+
+\subsection*{5.2 Recommended Store Staff Workflow}
+A typical store-staff workflow may look like this:
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt,topsep=2pt]
+    \item log in and review the dashboard;
+    \item enter new carbon records for store operations;
+    \item enter new waste records and confirm recycling values;
+    \item review or help generate reports for the current period if required;
+    \item log or review training-related activities.
+\end{enumerate}
+
+
+\subsection*{5.3 Store Staff Restrictions and Practical Notes}
+Store staff do not normally manage thresholds, compliance scoring, anomaly detection, user accounts, or audit logs. They also operate within a narrower data scope and may face stricter time limits for editing or deleting operational records.
+
+
+\section*{6. Region Manager Guide}
+
+\subsection*{6.1 Typical Responsibilities}
+Region managers supervise sustainability performance across multiple stores within their assigned region. Compared with store staff, they focus less on raw data entry and more on monitoring, comparison, and issue identification.
+
+
+\subsection*{6.2 Key Pages for Region Managers}
+In addition to the common pages, region managers can access Alerts, Compliance Score, and Anomaly Detection. These pages help them identify unusual values, assess ESG readiness, and monitor whether stores are meeting sustainability-related expectations.
+
+
+\subsection*{6.3 Alerts Page}
+The Alerts page contains alert logs for monitoring threshold breaches. Depending on permissions, region managers can at least review logs, inspect metric values, and monitor whether issues have been noticed or marked as read.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{alert_page.png}
+  \caption{Alert page}
+  \label{fig:alert_page}
+\end{figure}
+
+\subsection*{6.4 Compliance Score Page}
+The Compliance Score page allows management users to calculate and review an ESG scorecard for a selected year. It includes an overall score gauge, a grade label, dimension breakdowns, and detailed metric rows. This page helps managers translate many separate sustainability activities into one structured review surface.
+
+\shotnote{Capture the Compliance Score page after calculation so that the gauge, dimension bars, and detail table are all populated.}
+
+\draftnote{The final paragraph should explain why a manager would use this page: not for data entry, but for performance review and follow-up planning.}
+
+\subsection*{6.5 Anomaly Detection}
+The anomaly detection page helps users identify suspicious or abnormal carbon and waste values. This may include unusual spikes, invalid values, or records that deserve closer investigation.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{anomaly_detection.png}
+  \caption{Anomaly Detection}
+  \label{fig:anomaly_detection}
+\end{figure}
+
+\section*{7. HQ Manager Guide}
+
+\subsection*{7.1 Typical Responsibilities}
+HQ managers operate at company level. They review cross-store performance, manage ESG governance content, configure thresholds, assess compliance, and maintain organisational user records. Their role is one of the most important to emphasise in the user manual because many advanced management pages are designed for them.
+
+\draftnote{The final wording should make clear that HQ managers bridge operational oversight and governance management.}
+
+\subsection*{7.2 Alert Threshold Configuration}
+HQ managers can use the Alerts page not only to review alert logs but also to define threshold rules. The threshold form includes metric type, condition, threshold value, scope, and optional notification email. This allows management to convert sustainability expectations into automated monitoring conditions.
+
+\shotnote{Capture the Alerts page with the threshold table and, if possible, the \texttt{Add Threshold} modal open. This is one of the strongest management screenshots in the project.}
+
+\textbf{Suggested points to cover:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item HQ managers can define threshold rules for monitoring;
+    \item scope can be company-wide, regional, or store-specific;
+    \item logs show breaches and read/unread state;
+    \item notification email is optional.
+\end{itemize}
+
+\subsection*{7.3 Supplier ESG Assessment}
+Within ESG Management, HQ managers can create and edit supplier records and complete the ESG scorecard. The system uses 0/50/100 options across several sub-indicators and automatically computes dimension-level scores and the overall grade.
+
+\draftnote{The final user manual should explain this in simple terms: managers choose scorecard values for several criteria and the platform calculates the result automatically. Avoid repeating the full technical weighting logic from the system document.}
+
+\shotnote{Recommended screenshot set: (1) supplier ESG table with grades visible; (2) add/edit supplier modal showing scorecard fields; (3) optional close-up of one supplier row if grade columns are hard to read in the full-page screenshot.}
+
+\subsection*{7.4 Company Policy Management}
+The policy tab supports creation, editing, review, and deletion of ESG-related internal policies. Managers can set title, category, status, effective date, version, and content. Policies can be viewed in read mode and edited in form mode.
+
+\draftnote{This section should help teammates who are less familiar with the module understand that it behaves like a lightweight internal document management page rather than a reporting page.}
+
+\shotnote{Capture one screenshot of the policy list and policy detail pane. If possible, add a second screenshot of the edit form showing the title, category, status, and content fields.}
+
+\subsection*{7.5 User Management}
+The User Management page is available to HQ managers and admins. It contains summary cards, a user table, an add-user modal, edit functionality, password reset, and deletion. The page also supports role assignment and scope assignment through region and store fields.
+
+\draftnote{The final text should explain this page carefully because it is one of the clearest examples of role management in the whole project. Mention that the page supports account lifecycle operations rather than operational sustainability data entry.}
+
+\shotnote{Recommended screenshot set: (1) main user table with summary cards; (2) add-user modal; (3) reset-password modal if there is room.}
+
+\textbf{Important points to mention:}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item role selection determines visible permissions elsewhere in the platform;
+    \item some users require region or store assignment;
+    \item password reset is a separate operation;
+    \item users cannot delete their own account through the delete operation.
+\end{itemize}
+
+\subsection*{7.6 Audit Log}
+The Audit Log page provides management visibility into important system operations. It includes summary cards, filters, and an operation table showing time, user, role, action, target, detail, and IP address.
+
+\draftnote{This section should emphasise review and accountability. The user manual does not need to explain how audit data are stored, only how a manager uses the page to inspect activity.}
+
+\shotnote{Capture one screenshot of the Audit Log page with both the statistics row and filtered operation table visible.}
+
+\section*{8. Admin Guide}
+
+\subsection*{8.1 Admin Position in the Platform}
+Admins are the highest-level users in the system. In practice, their user-facing workflow overlaps strongly with the HQ manager role, but with broader authority and fewer organisational restrictions. For that reason, the user manual can describe the admin role as an extended management role rather than writing an entirely separate long chapter.
+
+\draftnote{This section can stay short in the final version. It mainly prevents the manual from ignoring the admin role while avoiding unnecessary repetition.}
+
+\subsection*{8.2 Admin-Specific Emphasis}
+The admin user should be described as someone who can:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item manage users at the broadest level;
+    \item review audit and monitoring pages;
+    \item access company-wide management functions;
+    \item support platform-level oversight.
+\end{itemize}
+
+\draftnote{If the final document is near the page limit, this section can be merged into the HQ manager chapter with one final paragraph explaining that admins have broader access.}
+
+\section*{9. Suggested Screenshot Plan for the Final User Document}
+
+\begin{table}[h]
+\centering
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}p{0.16\linewidth}p{0.25\linewidth}p{0.18\linewidth}X@{}}
+\toprule
+\textbf{Section} & \textbf{Recommended Page} & \textbf{Priority} & \textbf{What the screenshot should clearly show} \\
+\midrule
+Getting Started & Login page & High & Username/password fields, login button, overall style \\
+Shared Workflows & Dashboard & High & Sidebar, summary cards, charts, and standard layout \\
+Shared Workflows & Carbon Tracking & High & Record list plus add-record area or form \\
+Shared Workflows & Waste Management & High & Waste record list and key form fields \\
+Shared Workflows & Reports & High & Generate-report form and generated-report table \\
+Shared Workflows & Training & Medium & Log-training form, stats cards, records table \\
+HQ Manager & Alerts & High & Alert logs and threshold configuration area \\
+HQ Manager & ESG Management -- Supplier & High & Supplier ESG table and add/edit scorecard modal \\
+HQ Manager & ESG Management -- Policy & Medium & Policy list and policy detail or edit pane \\
+HQ/Admin & User Management & High & User table, summary cards, add-user modal \\
+HQ/Admin & Audit Log & Medium & Stats cards, filters, operation table \\
+Region Manager & Compliance Score & Medium & Gauge, grade, dimension bars, detail metrics \\
+Region Manager & Anomaly Detection & Optional & Flagged or abnormal records displayed on the page \\
+\bottomrule
+\end{tabularx}
+\caption{Screenshot checklist for teammates completing the final user manual}
+\end{table}
+
+\draftnote{If the final page count becomes tight, keep only the high-priority screenshots and move the rest to backup material.}
+
+\section*{10. Writing Guidance for the Final Submission}
+
+\subsection*{10.1 Tone and Style}
+The final user manual should use clear, practical English. It should sound like a guide for users rather than a technical research paper. Paragraphs should focus on what the user sees, what the user can do, and what result the user should expect.
+
+\subsection*{10.2 What to Avoid}
+The final version should avoid:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item backend implementation detail;
+    \item SQL or database-level explanation;
+    \item overclaiming permissions that a role does not really have;
+    \item repeating the same workflow description across roles without adjustment.
+\end{itemize}
+
+\subsection*{10.3 What to Emphasise}
+The final version should repeatedly emphasise:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item role-sensitive access;
+    \item practical workflows and clear task steps;
+    \item the connection between operational input and management output;
+    \item the difference between everyday pages and advanced management pages.
+\end{itemize}
+
+\section*{11. Short Final Conclusion Placeholder}
+The final conclusion should briefly summarise that the platform supports different user groups through role-based workflows and provides a practical browser-based environment for sustainability operations and ESG management. It should also state that the user manual has focused on implemented functions rather than theoretical future features.
+
+\draftnote{Keep the final conclusion to one short paragraph. This section mainly helps the manual end cleanly.}
+
+\end{document}

@@ -12,6 +12,9 @@ CREATE DATABASE IF NOT EXISTS sustainability_platform
 USE sustainability_platform;
 
 -- Drop existing tables (reverse foreign key dependency order)
+DROP TABLE IF EXISTS training_record;
+DROP TABLE IF EXISTS esg_policy;
+DROP TABLE IF EXISTS supplier;
 DROP TABLE IF EXISTS alert_log;
 DROP TABLE IF EXISTS alert_threshold;
 DROP TABLE IF EXISTS audit_log;
@@ -71,6 +74,8 @@ CREATE TABLE store (
     name        VARCHAR(100) NOT NULL COMMENT 'Store name',
     address     VARCHAR(255) DEFAULT NULL COMMENT 'Store address',
     city        VARCHAR(50)  DEFAULT NULL COMMENT 'City',
+    latitude    DECIMAL(9,6) DEFAULT NULL COMMENT 'Geographic latitude (for map visualization)',
+    longitude   DECIMAL(9,6) DEFAULT NULL COMMENT 'Geographic longitude (for map visualization)',
     opened_date DATE         DEFAULT NULL COMMENT 'Opening date',
     is_active   TINYINT(1)   NOT NULL DEFAULT 1 COMMENT 'Whether currently operational',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -211,7 +216,8 @@ CREATE TABLE report (
     date_from     DATE         NOT NULL COMMENT 'Period start date',
     date_to       DATE         NOT NULL COMMENT 'Period end date',
     content       TEXT         DEFAULT NULL COMMENT 'Report body (text summary)',
-    ai_comment    TEXT         DEFAULT NULL COMMENT 'AI-generated evaluation and recommendations (DeepSeek)',
+    ai_comment    TEXT         DEFAULT NULL COMMENT 'Evaluation and recommendations (AI- or template-generated)',
+    comment_source VARCHAR(16) DEFAULT NULL COMMENT 'Source of ai_comment: ''ai'' (DeepSeek) or ''template'' (rule-based)',
     pdf_path      VARCHAR(255) DEFAULT NULL COMMENT 'Exported PDF file path',
     status        ENUM('draft','generated','exported') NOT NULL DEFAULT 'draft',
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -267,6 +273,7 @@ CREATE TABLE alert_threshold (
     comparison      ENUM('lt','gt') NOT NULL DEFAULT 'lt'
                     COMMENT 'lt=trigger when below threshold, gt=trigger when above threshold',
     is_active       TINYINT(1)   NOT NULL DEFAULT 1 COMMENT 'Whether active',
+    notify_email    VARCHAR(500) DEFAULT NULL COMMENT 'Comma-separated notification emails',
     created_by      INT          NOT NULL COMMENT 'Created by (must be hq_manager)',
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -321,6 +328,99 @@ CREATE TABLE audit_log (
 ) ENGINE=InnoDB COMMENT='Operation audit log table';
 
 -- ============================================================
+-- 15. supplier - ESG supplier scorecard
+-- ============================================================
+CREATE TABLE supplier (
+    id                      INT PRIMARY KEY AUTO_INCREMENT,
+    company_id              INT          NOT NULL,
+    name                    VARCHAR(200) NOT NULL,
+    category                VARCHAR(100) DEFAULT NULL,
+    country                 VARCHAR(100) DEFAULT NULL,
+    carbon_disclosure       TINYINT DEFAULT NULL,
+    carbon_target           TINYINT DEFAULT NULL,
+    carbon_measures         TINYINT DEFAULT NULL,
+    carbon_certification    TINYINT DEFAULT NULL,
+    waste_policy            TINYINT DEFAULT NULL,
+    waste_recycling         TINYINT DEFAULT NULL,
+    waste_packaging         TINYINT DEFAULT NULL,
+    waste_tracking          TINYINT DEFAULT NULL,
+    ethics_labor            TINYINT DEFAULT NULL,
+    ethics_safety           TINYINT DEFAULT NULL,
+    ethics_working_conditions TINYINT DEFAULT NULL,
+    ethics_governance       TINYINT DEFAULT NULL,
+    reporting_report        TINYINT DEFAULT NULL,
+    reporting_completeness  TINYINT DEFAULT NULL,
+    reporting_frequency     TINYINT DEFAULT NULL,
+    reporting_verification  TINYINT DEFAULT NULL,
+    carbon_score            TINYINT DEFAULT NULL,
+    waste_score             TINYINT DEFAULT NULL,
+    ethics_score            TINYINT DEFAULT NULL,
+    reporting_score         TINYINT DEFAULT NULL,
+    overall_grade           ENUM('A','B','C','D','F') DEFAULT NULL,
+    notes                   TEXT DEFAULT NULL,
+    audited_by              INT DEFAULT NULL,
+    audited_at              DATETIME DEFAULT NULL,
+    created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_supplier_company (company_id),
+    FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='Supplier ESG scorecard assessment';
+
+-- ============================================================
+-- 16. esg_policy - company ESG policy management
+-- ============================================================
+CREATE TABLE esg_policy (
+    id              INT PRIMARY KEY AUTO_INCREMENT,
+    company_id      INT          NOT NULL,
+    title           VARCHAR(255) NOT NULL,
+    category        ENUM('environment','social','governance','sdg12','other') NOT NULL DEFAULT 'other',
+    content         TEXT         NOT NULL,
+    version         VARCHAR(20)  DEFAULT '1.0',
+    status          ENUM('draft','active','archived') NOT NULL DEFAULT 'draft',
+    effective_date  DATE         DEFAULT NULL,
+    created_by      INT          NOT NULL,
+    updated_by      INT          DEFAULT NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_policy_company (company_id),
+    FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES `user`(id)  ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='ESG policy documents';
+
+-- ============================================================
+-- 17. training_record - employee sustainability training
+-- ============================================================
+CREATE TABLE training_record (
+    id               INT PRIMARY KEY AUTO_INCREMENT,
+    company_id       INT          NOT NULL,
+    store_id         INT          DEFAULT NULL,
+    trainee_user_id  INT          DEFAULT NULL COMMENT 'Staff who completed training',
+    course_name      VARCHAR(150) NOT NULL,
+    course_type      ENUM('carbon_awareness','waste_management','energy_efficiency',
+                         'sustainability_reporting','green_procurement','other')
+                     NOT NULL DEFAULT 'other',
+    duration_hours   DECIMAL(5,1) NOT NULL DEFAULT 0,
+    completion_date  DATE         NOT NULL,
+    score            TINYINT UNSIGNED DEFAULT NULL COMMENT '0-100 assessment score',
+    status           ENUM('completed','in_progress','cancelled') NOT NULL DEFAULT 'completed',
+    note             TEXT         DEFAULT NULL,
+    created_by       INT          NOT NULL COMMENT 'User who logged this record',
+    created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_training_company  (company_id),
+    INDEX idx_training_store    (store_id),
+    INDEX idx_training_trainee  (trainee_user_id),
+    INDEX idx_training_date     (completion_date),
+    FOREIGN KEY (company_id)      REFERENCES company(id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id)        REFERENCES store(id)   ON DELETE SET NULL,
+    FOREIGN KEY (trainee_user_id) REFERENCES `user`(id)  ON DELETE SET NULL,
+    FOREIGN KEY (created_by)      REFERENCES `user`(id)  ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='Employee sustainability training completion records';
+
+-- ============================================================
 -- Initial seed data
 -- ============================================================
 
@@ -334,21 +434,22 @@ INSERT INTO region (id, company_id, name, description) VALUES
 (2, 1, 'South Region',  'Covers Guangzhou, Shenzhen, and other Guangdong stores'),
 (3, 1, 'East Region',   'Covers Shanghai, Nanjing, Hangzhou stores');
 
--- Six demo stores (two per region)
-INSERT INTO store (id, company_id, region_id, name, city, opened_date) VALUES
-(1, 1, 1, 'Chaoyang Store',   'Beijing',   '2022-03-15'),
-(2, 1, 1, 'Haidian Store',    'Beijing',   '2022-07-01'),
-(3, 1, 2, 'Tianhe Store',     'Guangzhou', '2021-11-20'),
-(4, 1, 2, 'Nanshan Store',    'Shenzhen',  '2022-01-10'),
-(5, 1, 3, 'Jingan Store',     'Shanghai',  '2021-06-01'),
-(6, 1, 3, 'West Lake Store',  'Hangzhou',  '2022-09-08');
+-- Six demo stores (two per region) — coordinates approximate to district centers
+INSERT INTO store (id, company_id, region_id, name, city, latitude, longitude, opened_date) VALUES
+(1, 1, 1, 'Chaoyang Store',   'Beijing',   39.921400, 116.443900, '2022-03-15'),
+(2, 1, 1, 'Haidian Store',    'Beijing',   39.959000, 116.298000, '2022-07-01'),
+(3, 1, 2, 'Tianhe Store',     'Guangzhou', 23.125200, 113.360400, '2021-11-20'),
+(4, 1, 2, 'Nanshan Store',    'Shenzhen',  22.533300, 113.930500, '2022-01-10'),
+(5, 1, 3, 'Jingan Store',     'Shanghai',  31.228000, 121.448000, '2021-06-01'),
+(6, 1, 3, 'West Lake Store',  'Hangzhou',  30.258900, 120.130000, '2022-09-08');
 
 -- Test accounts (password: '123456'; hash generated by werkzeug pbkdf2)
 -- Run database/init_users.py to generate correct hashes, then replace placeholders below
 INSERT INTO `user` (id, company_id, region_id, store_id, username, password, display_name, role) VALUES
-(1, 1, NULL, NULL, 'test_business', 'PLACEHOLDER_RUN_INIT_USERS', 'HQ ESG Manager', 'hq_manager'),
-(2, 1, 1,    NULL, 'test_region',   'PLACEHOLDER_RUN_INIT_USERS', 'North Region Manager', 'region_manager'),
-(3, 1, 1,    1,    'test_staff',    'PLACEHOLDER_RUN_INIT_USERS', 'Beijing Chaoyang Staff', 'store_staff');
+(1, 1,    NULL, NULL, 'test_business', 'PLACEHOLDER_RUN_INIT_USERS', 'HQ ESG Manager',        'hq_manager'),
+(2, 1,    1,    NULL, 'test_region',   'PLACEHOLDER_RUN_INIT_USERS', 'North Region Manager',  'region_manager'),
+(3, 1,    1,    1,    'test_staff',    'PLACEHOLDER_RUN_INIT_USERS', 'Beijing Chaoyang Staff','store_staff'),
+(4, NULL, NULL, NULL, 'test_admin',    'PLACEHOLDER_RUN_INIT_USERS', 'Platform Admin',        'admin');
 
 -- SDG goal reference data
 INSERT INTO sdg_goal (id, name, description) VALUES

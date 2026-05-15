@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Anomaly Detection - Sustainability Platform{% endblock %}
-{% block page_title %}<i class="bi bi-exclamation-triangle me-1"></i> AI Data Anomaly Detection{% endblock %}
+{% block title %}AI Anomaly Detection - Sustainability Platform{% endblock %}
+{% block page_title %}<i class="bi bi-stars text-warning me-1"></i> AI Data Anomaly Detection{% endblock %}
 
 {% block content %}
 <div class="row g-4">
 
-    <!-- Controls -->
+    <!-- ── Controls ─────────────────────────────────────────────────── -->
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-body d-flex gap-3 align-items-end flex-wrap">
                 <div>
-                    <label class="form-label mb-1 small">Look-back Window</label>
-                    <select class="form-select form-select-sm" id="ctrlDays" style="width:130px;">
+                    <label class="form-label mb-1 small text-muted">Look-back Window</label>
+                    <select class="form-select form-select-sm" id="ctrlDays" style="width:140px;">
                         <option value="30">Last 30 days</option>
                         <option value="90" selected>Last 90 days</option>
                         <option value="180">Last 180 days</option>
@@ -19,24 +19,57 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label mb-1 small">Z-score Threshold</label>
-                    <select class="form-select form-select-sm" id="ctrlThreshold" style="width:130px;">
+                    <label class="form-label mb-1 small text-muted">Z-score Threshold</label>
+                    <select class="form-select form-select-sm" id="ctrlThreshold" style="width:170px;">
                         <option value="1.5">1.5σ (Sensitive)</option>
                         <option value="2.0" selected>2.0σ (Standard)</option>
                         <option value="2.5">2.5σ (Strict)</option>
                         <option value="3.0">3.0σ (Extreme only)</option>
                     </select>
                 </div>
-                <button class="btn btn-warning btn-sm" onclick="runDetection()">
+                <div class="form-check ms-2 mb-1">
+                    <input class="form-check-input" type="checkbox" id="ctrlEnableAI" checked>
+                    <label class="form-check-label small" for="ctrlEnableAI">
+                        <i class="bi bi-stars text-warning"></i>
+                        Enable AI Insight <span class="text-muted">(top 3 per category, ~6–10s)</span>
+                    </label>
+                </div>
+                <button class="btn btn-warning btn-sm fw-semibold" onclick="runDetection()">
                     <i class="bi bi-cpu me-1"></i>Run Detection
                 </button>
-                <div id="detectStatus" class="text-muted small align-self-center"></div>
+                <div id="detectStatus" class="text-muted small align-self-center ms-2"></div>
+            </div>
+            <div class="card-body pt-0 pb-3 small text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                <strong>How it works:</strong> A statistical layer (Z-score per category +
+                hard validation rules) flags candidates instantly. When AI Insight is enabled,
+                DeepSeek analyses the top 10 anomalies to suggest <em>likely cause</em>,
+                <em>risk category</em>, and <em>recommended audit actions</em>.
+                Findings are persisted as work items so your verdict (Reviewed / False Positive)
+                survives across re-detection runs.
             </div>
         </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="col-12" id="summaryRow" style="display:none">
+    <!-- ── AI Overall Finding ───────────────────────────────────────── -->
+    <div class="col-12" id="aiSummaryCard" style="display:none;">
+        <div class="card border-0 shadow-sm border-start border-4 border-info">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-stars text-info fs-3"></i>
+                    <div class="flex-grow-1">
+                        <div class="small text-muted text-uppercase fw-semibold mb-1">
+                            AI Overall Finding
+                        </div>
+                        <div id="aiOverallSummary" class="ai-content small mt-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Summary KPI cards ────────────────────────────────────────── -->
+    <div class="col-12" id="summaryRow" style="display:none;">
         <div class="row g-3">
             <div class="col-6 col-md-3">
                 <div class="card border-0 shadow-sm text-center py-3">
@@ -65,27 +98,32 @@
         </div>
     </div>
 
-    <!-- Carbon Anomalies Table -->
-    <div class="col-12" id="carbonSection" style="display:none">
+    <!-- ── Carbon anomalies ─────────────────────────────────────────── -->
+    <div class="col-12" id="carbonSection" style="display:none;">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex align-items-center gap-2">
                 <i class="bi bi-cloud-haze text-danger fs-5"></i>
                 <h6 class="mb-0">Carbon Emission Anomalies</h6>
                 <span class="badge bg-danger ms-1" id="carbonAnoCount">0</span>
+                <small class="ms-auto text-muted">
+                    <span class="d-inline-block" style="width:8px;height:14px;background:#fffbeb;border-left:3px solid #f59e0b;vertical-align:middle;"></span>
+                    Top 3 with AI insight
+                </small>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
+                <div class="table-responsive anomaly-table-scroll">
+                    <table class="table table-sm mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
+                                <th style="width:34px;"></th>
                                 <th>Store</th>
                                 <th>Date</th>
-                                <th>Record</th>
-                                <th>Value (kgCO2e)</th>
-                                <th>Mean</th>
-                                <th>Z-score</th>
+                                <th>Category</th>
+                                <th class="text-end">Value (kgCO₂e)</th>
+                                <th class="text-end">Z-score</th>
                                 <th>Severity</th>
-                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="carbonAnoBody"></tbody>
@@ -95,27 +133,32 @@
         </div>
     </div>
 
-    <!-- Waste Anomalies Table -->
-    <div class="col-12" id="wasteSection" style="display:none">
+    <!-- ── Waste anomalies ──────────────────────────────────────────── -->
+    <div class="col-12" id="wasteSection" style="display:none;">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex align-items-center gap-2">
                 <i class="bi bi-trash text-warning fs-5"></i>
                 <h6 class="mb-0">Waste Record Anomalies</h6>
                 <span class="badge bg-warning text-dark ms-1" id="wasteAnoCount">0</span>
+                <small class="ms-auto text-muted">
+                    <span class="d-inline-block" style="width:8px;height:14px;background:#fffbeb;border-left:3px solid #f59e0b;vertical-align:middle;"></span>
+                    Top 3 with AI insight
+                </small>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
+                <div class="table-responsive anomaly-table-scroll">
+                    <table class="table table-sm mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
+                                <th style="width:34px;"></th>
                                 <th>Store</th>
                                 <th>Date</th>
-                                <th>Record</th>
-                                <th>Value (kg)</th>
-                                <th>Mean</th>
-                                <th>Z-score</th>
+                                <th>Category</th>
+                                <th class="text-end">Value (kg)</th>
+                                <th class="text-end">Z-score</th>
                                 <th>Severity</th>
-                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="wasteAnoBody"></tbody>
@@ -125,40 +168,121 @@
         </div>
     </div>
 
-    <!-- Placeholder before first run -->
+    <!-- ── Empty state ──────────────────────────────────────────────── -->
     <div class="col-12 text-center py-5" id="placeholder">
         <i class="bi bi-cpu text-muted" style="font-size:3rem;"></i>
-        <p class="text-muted mt-3">Click <strong>Run Detection</strong> to scan your data for statistical anomalies using Z-score analysis.</p>
-        <small class="text-muted">Records deviating more than the configured σ from their category mean will be flagged.</small>
+        <p class="text-muted mt-3 mb-1">
+            Click <strong>Run Detection</strong> to scan your data for anomalies.
+        </p>
+        <small class="text-muted">
+            Statistical layer flags Z-score deviations; AI layer adds root-cause hypotheses
+            and recommended actions.
+        </small>
+    </div>
+
+    <!-- ── No anomalies state ───────────────────────────────────────── -->
+    <div class="col-12 text-center py-5" id="cleanState" style="display:none;">
+        <i class="bi bi-shield-check text-success" style="font-size:3rem;"></i>
+        <p class="text-success mt-3 mb-1 fw-semibold">No anomalies detected.</p>
+        <small class="text-muted" id="cleanStateMeta"></small>
     </div>
 
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Fixed-height scrollable anomaly table panels with sticky header. */
+  .anomaly-table-scroll {
+    max-height: 480px;
+    overflow-y: auto;
+  }
+  .anomaly-table-scroll thead.table-light th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+  }
+  /* Chevron icon direction is toggled via JS in handleCollapseEvent()
+     — no CSS rotation here to avoid Bootstrap-icon / cache quirks. */
+  /* Visual highlight on the top-N rows that carry fresh AI insight. */
+  .anomaly-table-scroll tbody tr.anomaly-top-row > td {
+    background: #fffbeb;   /* warm cream tint */
+  }
+  .anomaly-table-scroll tbody tr.anomaly-top-row td:first-child {
+    box-shadow: inset 3px 0 0 #f59e0b;
+  }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
+// ── Display helpers ─────────────────────────────────────────────────
 const SEVERITY_BADGE = {
     high:   '<span class="badge bg-danger">High</span>',
     medium: '<span class="badge bg-warning text-dark">Medium</span>',
 };
 
+const STATUS_BADGE = {
+    open:           '<span class="badge bg-secondary">Open</span>',
+    reviewed:       '<span class="badge bg-success">Reviewed</span>',
+    false_positive: '<span class="badge bg-light text-dark border">False Positive</span>',
+    resolved:       '<span class="badge bg-primary">Resolved</span>',
+};
+
+const RISK_BADGE_CLASS = {
+    'Data Quality':      'bg-info text-dark',
+    'Operational':       'bg-warning text-dark',
+    'Operational Issue': 'bg-warning text-dark',
+    'Fraud Signal':      'bg-danger',
+};
+
+function escapeAnoHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => (
+        {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+}
+
+// ── Chevron toggle via Bootstrap collapse events ────────────────────
+// Swap `.ai-chevron` between bi-chevron-right (collapsed) and bi-chevron-down
+// (expanded). Using event delegation on document so it works for rows
+// dynamically added by renderAnomalies().
+document.addEventListener('show.bs.collapse', (e) => {
+    if (!e.target.classList.contains('ai-insight-row')) return;
+    const btn  = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+    const icon = btn?.querySelector('.ai-chevron');
+    if (icon) icon.classList.replace('bi-chevron-right', 'bi-chevron-down');
+});
+document.addEventListener('hide.bs.collapse', (e) => {
+    if (!e.target.classList.contains('ai-insight-row')) return;
+    const btn  = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+    const icon = btn?.querySelector('.ai-chevron');
+    if (icon) icon.classList.replace('bi-chevron-down', 'bi-chevron-right');
+});
+
+// ── Run detection ───────────────────────────────────────────────────
 async function runDetection() {
     const days      = document.getElementById('ctrlDays').value;
     const threshold = document.getElementById('ctrlThreshold').value;
-    const status    = document.getElementById('detectStatus');
+    const enableAi  = document.getElementById('ctrlEnableAI').checked ? '1' : '0';
+    const statusEl  = document.getElementById('detectStatus');
 
-    status.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Scanning...';
+    statusEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>'
+        + (enableAi === '1' ? 'Scanning + analysing with AI…' : 'Scanning…');
 
-    const data = await apiFetch(`/api/anomaly/detect?days=${days}&threshold=${threshold}`);
+    const data = await apiFetch(
+        `/api/anomaly/detect?days=${days}&threshold=${threshold}&enable_ai=${enableAi}`
+    );
 
     if (!data || !data.success) {
-        status.textContent = 'Detection failed.';
+        const msg = (data && data.message) ? data.message : 'Detection failed.';
+        statusEl.innerHTML = `<span class="text-danger">${escapeAnoHtml(msg)}</span>`;
         return;
     }
 
     document.getElementById('placeholder').style.display = 'none';
 
-    // Summary
     const s = data.summary;
     document.getElementById('statCarbonAnom').textContent  = data.carbon.length;
     document.getElementById('statWasteAnom').textContent   = data.waste.length;
@@ -166,16 +290,46 @@ async function runDetection() {
     document.getElementById('statWasteTotal').textContent  = s.waste_total_records;
     document.getElementById('summaryRow').style.display    = '';
 
-    status.textContent = `Scanned ${s.carbon_total_records + s.waste_total_records} records in last ${s.days} days.`;
+    // AI overall summary
+    const aiCard = document.getElementById('aiSummaryCard');
+    if (s.overall_summary_html) {
+        document.getElementById('aiOverallSummary').innerHTML = s.overall_summary_html;
+        aiCard.style.display = '';
+    } else {
+        aiCard.style.display = 'none';
+    }
 
-    renderAnomalies('carbon', data.carbon, 'kgCO2e');
+    // Status line
+    let aiNote = '';
+    if (s.enable_ai && s.used_llm) {
+        aiNote = ' AI insight generated by DeepSeek for top anomalies.';
+    } else if (s.enable_ai && !s.used_llm) {
+        aiNote = ' (DeepSeek unavailable — deterministic fallback insights shown.)';
+    }
+    statusEl.textContent = `Scanned ${s.carbon_total_records + s.waste_total_records} records `
+        + `in last ${s.days} days at ${s.threshold}σ.${aiNote}`;
+
+    renderAnomalies('carbon', data.carbon, 'kgCO₂e');
     renderAnomalies('waste',  data.waste,  'kg');
+
+    // Clean state
+    const clean = (data.carbon.length === 0 && data.waste.length === 0);
+    document.getElementById('cleanState').style.display = clean ? '' : 'none';
+    if (clean) {
+        document.getElementById('cleanStateMeta').textContent =
+            `Last ${s.days} days · ${s.carbon_total_records + s.waste_total_records} records analysed.`;
+    }
 }
 
+// ── Render one anomaly table ────────────────────────────────────────
+// Top 3 items are already sorted to the top server-side (by severity + |z|),
+// receive AI insight enrichment, and are highlighted with a warm tint.
+const TOP_N = 3;
+
 function renderAnomalies(type, items, unit) {
-    const section  = document.getElementById(`${type}Section`);
-    const tbody    = document.getElementById(`${type}AnoBody`);
-    const countEl  = document.getElementById(`${type}AnoCount`);
+    const section = document.getElementById(`${type}Section`);
+    const tbody   = document.getElementById(`${type}AnoBody`);
+    const countEl = document.getElementById(`${type}AnoCount`);
 
     if (!items.length) {
         section.style.display = 'none';
@@ -185,28 +339,111 @@ function renderAnomalies(type, items, unit) {
     section.style.display = '';
     countEl.textContent   = items.length;
 
-    tbody.innerHTML = items.map(a => {
-        const parts   = (a.label || '').split(' | ');
-        const record  = parts.slice(1, -1).join(' | ') || a.label;
-        const zCell   = a.z_score !== null
-            ? `<span class="${Math.abs(a.z_score) >= 3 ? 'text-danger fw-bold' : 'text-warning fw-semibold'}">${a.z_score > 0 ? '+' : ''}${a.z_score}</span>`
-            : '<span class="text-muted">rule</span>';
-        const typeTag = a.direction === 'rule'
-            ? '<span class="badge bg-secondary">Rule</span>'
-            : `<span class="badge bg-info text-dark">${a.direction === 'above' ? '▲ Above' : '▼ Below'}</span>`;
-        const meanCell = a.mean !== null ? a.mean.toFixed(1) : '—';
+    tbody.innerHTML = items.map((a, idx) => {
+        const rowId    = `${type}-row-${idx}`;
+        const isTopN   = idx < TOP_N;
+        const rowClass = isTopN ? 'anomaly-top-row' : '';
+        // Pull category from the label "Store | Category | sub | date"
+        const parts    = (a.label || '').split(' | ');
+        const category = parts[1] || '';
+        const subtype  = parts[2] && parts[2] !== '-' ? ` <small class="text-muted">${escapeAnoHtml(parts[2])}</small>` : '';
 
-        return `<tr>
-            <td class="small fw-semibold">${a.store_name}</td>
-            <td class="small text-muted">${a.record_date}</td>
-            <td class="small">${record}${a.note ? `<br><span class="text-danger" style="font-size:0.75rem">${a.note}</span>` : ''}</td>
-            <td class="small">${a.value.toFixed(2)} ${unit}</td>
-            <td class="small text-muted">${meanCell} ${unit}</td>
-            <td class="small">${zCell}</td>
-            <td>${SEVERITY_BADGE[a.severity] || a.severity}</td>
-            <td>${typeTag}</td>
-        </tr>`;
+        const zCell = (a.z_score !== null && a.z_score !== undefined)
+            ? `<span class="${Math.abs(a.z_score) >= 3 ? 'text-danger fw-bold' : 'text-warning fw-semibold'}">`
+                + `${a.z_score > 0 ? '+' : ''}${a.z_score}σ</span>`
+            : '<span class="text-muted small">rule</span>';
+        const meanCell = (a.mean !== null && a.mean !== undefined)
+            ? `<small class="text-muted">μ ${Number(a.mean).toFixed(1)}</small>`
+            : '';
+        const dirArrow = a.direction === 'rule' ? ''
+            : (a.direction === 'above' ? ' <i class="bi bi-arrow-up-short"></i>'
+                                       : ' <i class="bi bi-arrow-down-short"></i>');
+
+        const hasInsight = !!a.ai_insight_html;
+        const expandBtn = hasInsight
+            ? `<button class="btn btn-sm btn-link p-0 text-decoration-none ai-toggle-btn" type="button"
+                       data-bs-toggle="collapse" data-bs-target="#${rowId}"
+                       aria-expanded="false" title="Show / hide AI analysis">
+                  <i class="bi bi-chevron-right ai-chevron"></i>
+               </button>`
+            : `<span class="text-muted" title="Run with AI Insight enabled to see analysis">
+                  <i class="bi bi-dash"></i>
+               </span>`;
+
+        const riskBadge = a.risk_category
+            ? `<span class="badge ${RISK_BADGE_CLASS[a.risk_category] || 'bg-secondary'} mb-2">
+                  ${escapeAnoHtml(a.risk_category)}
+               </span>`
+            : '';
+
+        const statusBadge = STATUS_BADGE[a.review_status || 'open'] || STATUS_BADGE.open;
+
+        const actions = (a.review_status === 'open' || !a.review_status)
+            ? `<div class="btn-group btn-group-sm" role="group">
+                  <button class="btn btn-outline-success" title="Mark Reviewed"
+                          onclick="markReview(${a.review_id}, 'reviewed', this)">
+                      <i class="bi bi-check2"></i>
+                  </button>
+                  <button class="btn btn-outline-secondary" title="Mark False Positive"
+                          onclick="markReview(${a.review_id}, 'false_positive', this)">
+                      <i class="bi bi-x"></i>
+                  </button>
+               </div>`
+            : `<button class="btn btn-sm btn-outline-secondary" title="Re-open"
+                       onclick="markReview(${a.review_id}, 'open', this)">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+               </button>`;
+
+        const noteRow = a.note
+            ? `<br><small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>${escapeAnoHtml(a.note)}</small>`
+            : '';
+
+        const insightContent = a.ai_insight_html
+            ? a.ai_insight_html
+            : '<em class="text-muted">No AI insight saved. Re-run with “Enable AI Insight” checked.</em>';
+
+        return `
+            <tr class="${rowClass}">
+                <td>${expandBtn}</td>
+                <td class="small fw-semibold">${escapeAnoHtml(a.store_name)}</td>
+                <td class="small text-muted">${escapeAnoHtml(a.record_date)}</td>
+                <td class="small">${escapeAnoHtml(category)}${subtype}${noteRow}</td>
+                <td class="text-end small">${Number(a.value).toFixed(2)} ${unit}<br>${meanCell}</td>
+                <td class="text-end small">${zCell}${dirArrow}</td>
+                <td>${SEVERITY_BADGE[a.severity] || a.severity}</td>
+                <td>${statusBadge}</td>
+                <td>${actions}</td>
+            </tr>
+            <tr class="collapse ai-insight-row" id="${rowId}">
+                <td colspan="9" class="bg-light">
+                    <div class="p-3 ps-4 border-start border-3 border-info">
+                        ${riskBadge}
+                        <div class="ai-content small">${insightContent}</div>
+                    </div>
+                </td>
+            </tr>
+        `;
     }).join('');
+}
+
+// ── Review action ───────────────────────────────────────────────────
+async function markReview(reviewId, status, btn) {
+    let notes = '';
+    if (status === 'false_positive') {
+        notes = prompt('Optional note (why is this a false positive?):', '') || '';
+        if (notes === null) return;
+    }
+    btn.disabled = true;
+    const data = await apiFetch(`/api/anomaly/review/${reviewId}`, {
+        method: 'POST',
+        body:   JSON.stringify({ status, notes }),
+    });
+    btn.disabled = false;
+    if (data && data.success) {
+        runDetection();
+    } else {
+        alert((data && data.message) || 'Failed to update review status.');
+    }
 }
 </script>
 {% endblock %}
